@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control de Obra v11 · Tendido de Cable</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1f2937;
+    --border: #30363d;
+    --accent: #f59e0b;
+    --accent2: #10b981;
+    --accent3: #3b82f6;
+    --danger: #ef4444;
+    --text: #e6edf3;
+    --text2: #8b949e;
+    --text3: #6e7681;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--surface);
+    border-bottom: 2px solid var(--accent);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 2px;
+    color: var(--accent);
+  }
+  header .date-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text2);
+    background: var(--surface2);
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    padding: 16px 24px 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .tab-btn {
+    background: none;
+    border: none;
+    color: var(--text2);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 10px 18px;
+    cursor: pointer;
+    border-radius: 6px 6px 0 0;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    letter-spacing: 0.3px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: rgba(245,158,11,0.05);
+  }
+
+  /* MAIN */
+  .main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title .icon { font-size: 14px; }
+
+  /* FORM GRID */
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px;
+  }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+  label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text2);
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+  input, select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 12px;
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  select option { background: var(--surface2); }
+
+  /* TRAVEL SECTION */
+  .travel-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+    align-items: end;
+  }
+  .travel-result {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 9px 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--accent2);
+  }
+  .travel-note {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 8px;
+    grid-column: 1 / -1;
+  }
+
+  /* CABLE SECTION */
+  .cable-rows { display: flex; flex-direction: column; gap: 10px; }
+  .cable-row {
+    display: grid;
+    grid-template-columns: 150px 130px 100px 40px;
+    gap: 10px;
+    align-items: center;
+    background: var(--bg);
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    transition: border-color 0.2s;
+  }
+  .cable-row:hover { border-color: var(--accent); }
+  .cable-row-header {
+    display: grid;
+    grid-template-columns: 150px 130px 100px 40px;
+    gap: 10px;
+    padding: 0 14px 6px;
+  }
+  .cable-row-header span {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+  .remove-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text3);
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  .remove-btn:hover { border-color: var(--danger); color: var(--danger); }
+  .add-cable-btn {
+    background: none;
+    border: 1px dashed var(--border);
+    color: var(--text2);
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    width: 100%;
+    transition: all 0.2s;
+    margin-top: 8px;
+  }
+  .add-cable-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* PRODUCTIVITY */
+  .prod-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+  }
+  .prod-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+  }
+  .prod-card .value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .prod-card .unit {
+    font-size: 11px;
+    color: var(--text2);
+    font-family: 'DM Mono', monospace;
+  }
+  .prod-card .label {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 4px;
+    letter-spacing: 0.3px;
+  }
+  .value.green { color: var(--accent2); }
+  .value.yellow { color: var(--accent); }
+  .value.red { color: var(--danger); }
+  .value.blue { color: var(--accent3); }
+
+  /* OBJECTIVE BAR */
+  .obj-bar-wrap { margin-top: 8px; }
+  .obj-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text2);
+    margin-bottom: 4px;
+  }
+  .obj-bar-bg {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .obj-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.5s ease;
+    background: var(--accent2);
+  }
+  .obj-bar-fill.warning { background: var(--accent); }
+  .obj-bar-fill.danger { background: var(--danger); }
+
+  /* SAVE BUTTON */
+  .save-btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 8px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 8px;
+  }
+  .save-btn:hover { background: #fbbf24; transform: translateY(-1px); }
+  .save-btn:active { transform: translateY(0); }
+
+  /* LOG TABLE */
+  .log-table-wrap { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+  }
+  th {
+    background: var(--surface2);
+    color: var(--text2);
+    font-size: 10px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    white-space: nowrap;
+  }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .badge-ok { background: rgba(16,185,129,0.15); color: var(--accent2); }
+  .badge-warn { background: rgba(245,158,11,0.15); color: var(--accent); }
+  .badge-bad { background: rgba(239,68,68,0.15); color: var(--danger); }
+
+  /* MONTHLY SUMMARY */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .sum-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+  }
+  .sum-card .sum-val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 36px;
+    line-height: 1;
+    color: var(--accent);
+  }
+  .sum-card .sum-label {
+    font-size: 11px;
+    color: var(--text2);
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+  .sum-card .sum-sub {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 6px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* CABLE SUMMARY TABLE */
+  .cable-sum-table td:first-child { color: var(--accent3); font-weight: 500; }
+  .cable-sum-table td:nth-child(2) { color: var(--text); }
+  .cable-sum-table td:nth-child(3) { color: var(--accent2); }
+
+  /* DATA BUTTONS */
+  .data-btn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .data-btn {
+    display: flex; flex-direction: column; align-items: flex-start;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px 20px; cursor: pointer; text-align: left;
+    transition: all 0.2s; font-family: 'DM Sans', sans-serif;
+  }
+  .data-btn:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .data-btn .db-icon { font-size: 24px; margin-bottom: 10px; }
+  .data-btn .db-title { font-family: 'Bebas Neue', sans-serif; font-size: 15px; letter-spacing: 1.5px; color: var(--accent); margin-bottom: 4px; }
+  .data-btn .db-desc { font-size: 11px; color: var(--text3); line-height: 1.5; }
+  .data-btn.danger:hover { border-color: var(--danger); }
+  .data-btn.danger .db-title { color: var(--danger); }
+  .data-btn.green:hover { border-color: var(--accent2); }
+  .data-btn.green .db-title { color: var(--accent2); }
+  .data-btn.blue:hover { border-color: var(--accent3); }
+  .data-btn.blue .db-title { color: var(--accent3); }
+  .cloud-status { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text2); margin-top: 12px; font-family: 'DM Mono', monospace; }
+  .cloud-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); }
+  .cloud-dot.off { background: var(--text3); }
+  .sync-info { font-size: 11px; color: var(--text3); margin-top: 6px; line-height: 1.6; }
+  .inp-cloud { margin-top: 10px; display: flex; gap: 8px; }
+  .inp-cloud input { flex: 1; }
+  .cloud-sync-btn {
+    background: var(--accent3); color: #fff; border: none; padding: 9px 16px;
+    border-radius: 6px; font-family: 'Bebas Neue', sans-serif; font-size: 14px;
+    letter-spacing: 1px; cursor: pointer; white-space: nowrap; transition: all 0.2s;
+  }
+  .cloud-sync-btn:hover { background: #60a5fa; }
+  .cloud-sync-btn.secondary { background: var(--surface2); color: var(--text2); }
+  .cloud-sync-btn.secondary:hover { background: var(--border); color: var(--text); }
+
+  /* DELETE ENTRY */
+  .del-entry-btn {
+    background: none;
+    border: none;
+    color: var(--text3);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.2s;
+  }
+  .del-entry-btn:hover { color: var(--danger); }
+
+  /* EMPTY STATE */
+  .empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--text3);
+    font-size: 13px;
+  }
+  .empty-state .big { font-size: 32px; margin-bottom: 8px; }
+
+  /* NOTES AREA */
+  textarea {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 12px;
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    outline: none;
+    resize: vertical;
+    min-height: 70px;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+  textarea:focus { border-color: var(--accent); }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--accent2);
+    color: #000;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    z-index: 999;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  @media (max-width: 600px) {
+    .travel-grid { grid-template-columns: 1fr 1fr; }
+    .cable-row { grid-template-columns: 1fr 1fr; }
+    .cable-row-header { display: none; }
+    header h1 { font-size: 22px; }
+    .summary-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ Control de Obra</h1>
+  <div class="date-badge" id="headerDate"></div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('entrada')">📋 Entrada Diaria</button>
+  <button class="tab-btn" onclick="switchTab('registro')">📁 Registro</button>
+  <button class="tab-btn" onclick="switchTab('resumen')">📊 Resumen Mensual</button>
+  <button class="tab-btn" onclick="switchTab('datos')">💾 Datos</button>
+</div>
+
+<div class="main">
+
+  <!-- TAB: ENTRADA DIARIA -->
+  <div id="tab-entrada" class="tab-content active">
+
+    <!-- INFO BÁSICA -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📅</span> Información del Día</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Fecha</label>
+          <input type="date" id="inp-fecha">
+        </div>
+        <div class="form-group">
+          <label>Nº Personas en equipo</label>
+          <input type="number" id="inp-personas" min="1" max="12" value="1" oninput="recalcular()">
+        </div>
+        <div class="form-group">
+          <label>Tipo de instalación</label>
+          <select id="inp-tipo" onchange="recalcular()">
+            <option value="poste">Postes (cualquier cable)</option>
+            <option value="icx">ICX</option>
+            <option value="ra">Ra</option>
+            <option value="malla">Malla</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- DESPLAZAMIENTO -->
+    <div class="card">
+      <div class="card-title"><span class="icon">🚗</span> Desplazamiento</div>
+      <div class="travel-grid">
+        <div class="form-group">
+          <label>Tiempo total viaje ida (min)</label>
+          <input type="number" id="inp-viaje-ida" value="30" min="0" oninput="recalcular()">
+        </div>
+        <div class="form-group">
+          <label>Tiempo total viaje vuelta (min)</label>
+          <input type="number" id="inp-viaje-vuelta" value="30" min="0" oninput="recalcular()">
+        </div>
+        <div class="form-group">
+          <label>Tiempo empresa cubre (total)</label>
+          <div class="travel-result" id="disp-empresa-min">— min</div>
+        </div>
+      </div>
+      <p class="travel-note">ℹ️ 30 min ida + 30 min vuelta van a tu cargo. El tiempo que cubre la empresa <strong>reduce el objetivo de producción</strong> proporcionalmente. Jornada base: 8h (480 min).</p>
+    </div>
+
+    <!-- PRODUCTIVIDAD CALCULADA -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📐</span> Productividad Objetivo del Día</div>
+      <div class="prod-grid" id="prod-grid">
+        <div class="prod-card">
+          <div class="value yellow" id="calc-obj-persona">—</div>
+          <div class="unit">m/persona</div>
+          <div class="label">Objetivo ajustado</div>
+        </div>
+        <div class="prod-card">
+          <div class="value blue" id="calc-obj-equipo">—</div>
+          <div class="unit">m totales</div>
+          <div class="label">Objetivo equipo hoy</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRODUCCIÓN REAL -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📏</span> Metros Realizados Hoy</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Metros realizados hoy <span style="font-size:10px;color:var(--accent2);font-weight:500;text-transform:none;letter-spacing:0">(suma automática del cable)</span></label>
+          <input type="number" id="inp-metros" min="0" placeholder="0" readonly style="background:var(--surface2);color:var(--accent2);font-weight:600;cursor:default;border-color:var(--accent2)">
+        </div>
+      </div>
+      <!-- Barra objetivo -->
+      <div class="obj-bar-wrap" id="barra-wrap" style="margin-top:14px;display:none">
+        <div class="obj-bar-label">
+          <span id="barra-label">Cumplimiento</span>
+          <span id="barra-pct">0%</span>
+        </div>
+        <div class="obj-bar-bg"><div class="obj-bar-fill" id="barra-fill" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <!-- CABLE CONSUMIDO -->
+    <div class="card">
+      <div class="card-title"><span class="icon">🔌</span> Cable y Material Consumido</div>
+      <div class="cable-row-header">
+        <span>Tipo de cable</span>
+        <span>Método</span>
+        <span>Metros</span>
+        <span></span>
+      </div>
+      <div class="cable-rows" id="cable-rows"></div>
+      <button class="add-cable-btn" onclick="addCableRow()">+ Añadir línea de cable</button>
+
+      <div style="margin-top:20px">
+        <div class="card-title" style="margin-bottom:10px"><span class="icon">🕸️</span> Malla Consumida</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Metros de malla tendida</label>
+            <input type="number" id="inp-malla" min="0" placeholder="0" oninput="actualizarMetrosTotales()">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTAS -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📝</span> Notas del Día</div>
+      <textarea id="inp-notas" placeholder="Incidencias, observaciones, materiales especiales..."></textarea>
+    </div>
+
+    <button class="save-btn" onclick="guardarDia()">💾 GUARDAR DÍA</button>
+  </div>
+
+  <!-- TAB: REGISTRO -->
+  <div id="tab-registro" class="tab-content">
+    <div class="card">
+      <div class="card-title"><span class="icon">📁</span> Historial de Días</div>
+      <div id="registro-content"></div>
+    </div>
+  </div>
+
+  <!-- TAB: RESUMEN MENSUAL -->
+  <div id="tab-resumen" class="tab-content">
+    <div class="card">
+      <div class="card-title"><span class="icon">📊</span> Filtro Mensual</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Mes</label>
+          <select id="filter-mes" onchange="renderResumen()">
+            <option value="0">Enero</option><option value="1">Febrero</option>
+            <option value="2">Marzo</option><option value="3">Abril</option>
+            <option value="4">Mayo</option><option value="5">Junio</option>
+            <option value="6">Julio</option><option value="7">Agosto</option>
+            <option value="8">Septiembre</option><option value="9">Octubre</option>
+            <option value="10">Noviembre</option><option value="11">Diciembre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Año</label>
+          <input type="number" id="filter-anio" value="2025" oninput="renderResumen()">
+        </div>
+      </div>
+    </div>
+    <div id="resumen-content"></div>
+  </div>
+
+  <!-- TAB: DATOS -->
+  <div id="tab-datos" class="tab-content">
+
+    <!-- EXPORT/IMPORT JSON -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📦</span> Copia de Seguridad (JSON)</div>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:16px">Guarda todos los datos en un archivo JSON. Puedes restaurarlos en cualquier momento o en otro dispositivo.</p>
+      <div class="data-btn-grid">
+        <button class="data-btn green" onclick="exportarJSON()">
+          <div class="db-icon">⬇️</div>
+          <div class="db-title">Exportar JSON</div>
+          <div class="db-desc">Descarga un archivo .json con todos tus registros. Guárdalo en Drive, email o USB.</div>
+        </button>
+        <button class="data-btn blue" onclick="document.getElementById('import-input').click()">
+          <div class="db-icon">⬆️</div>
+          <div class="db-title">Importar JSON</div>
+          <div class="db-desc">Carga un archivo .json exportado previamente. Los datos existentes se fusionan.</div>
+        </button>
+      </div>
+      <input type="file" id="import-input" accept=".json" style="display:none" onchange="importarJSON(event)">
+    </div>
+
+    <!-- EXPORT CSV/EXCEL -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📊</span> Exportar a Excel / CSV</div>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:16px">Descarga un archivo .csv que puedes abrir directamente en Excel, Google Sheets o LibreOffice.</p>
+      <div class="data-btn-grid">
+        <button class="data-btn green" onclick="exportarCSV('todo')">
+          <div class="db-icon">📋</div>
+          <div class="db-title">Exportar todo</div>
+          <div class="db-desc">Todos los días registrados en un único archivo CSV.</div>
+        </button>
+        <button class="data-btn blue" onclick="exportarCSVMes()">
+          <div class="db-icon">📅</div>
+          <div class="db-title">Exportar mes actual</div>
+          <div class="db-desc">Solo los registros del mes seleccionado en "Resumen Mensual".</div>
+        </button>
+        <button class="data-btn" onclick="exportarCSVCables()">
+          <div class="db-icon">🔌</div>
+          <div class="db-title">Exportar materiales</div>
+          <div class="db-desc">Resumen de cable y malla consumida por día.</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- NUBE / GIST -->
+    <div class="card">
+      <div class="card-title"><span class="icon">☁️</span> Sincronización en la Nube (GitHub Gist)</div>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:4px">Guarda y recupera tus datos desde cualquier dispositivo usando un <strong style="color:var(--text)">GitHub Gist privado</strong>. Necesitas una cuenta gratuita en GitHub.</p>
+      <p class="sync-info">1. Ve a <strong style="color:var(--accent3)">github.com/settings/tokens</strong> → genera un token con permiso <code style="background:var(--surface2);padding:1px 5px;border-radius:3px">gist</code><br>
+      2. Pega el token aquí. La primera vez se crea el Gist automáticamente.<br>
+      3. Guarda el Gist ID que aparece — introdúcelo en otros dispositivos para sincronizar.</p>
+      <div class="inp-cloud" style="flex-wrap:wrap;gap:8px;margin-top:14px">
+        <input type="password" id="gh-token" placeholder="GitHub Token (ghp_...)" style="min-width:200px;flex:2">
+        <input type="text" id="gh-gist-id" placeholder="Gist ID (opcional, para recuperar)" style="min-width:160px;flex:1">
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="cloud-sync-btn" onclick="subirNube()">☁️ SUBIR DATOS</button>
+        <button class="cloud-sync-btn secondary" onclick="bajarNube()">⬇️ DESCARGAR DE NUBE</button>
+      </div>
+      <div class="cloud-status" id="cloud-status" style="margin-top:12px;display:none">
+        <div class="cloud-dot" id="cloud-dot"></div>
+        <span id="cloud-status-text"></span>
+      </div>
+    </div>
+
+    <!-- PELIGRO -->
+    <div class="card">
+      <div class="card-title" style="color:var(--danger)"><span class="icon">⚠️</span> Zona Peligrosa</div>
+      <div class="data-btn-grid">
+        <button class="data-btn danger" onclick="borrarTodo()">
+          <div class="db-icon">🗑️</div>
+          <div class="db-title">Borrar todos los datos</div>
+          <div class="db-desc">Elimina permanentemente todos los registros del navegador. Haz una exportación antes.</div>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+// ── CONSTANTS ──────────────────────────────────────────────────
+const OBJ_M = { poste: 145, icx: 140, ra: 165, malla: 160 };
+const TIPOS_LABEL = { poste: 'Postes', icx: 'ICX', ra: 'Ra', malla: 'Malla' };
+const CABLE_TIPOS = ['12Fo','24Fo','48Fo','96Fo','144Fo','288Fo','512Fo','576Fo'];
+const STORAGE_KEY = 'control_obra_v2';
+
+// ── INIT ────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('inp-fecha').value = today;
+  document.getElementById('headerDate').textContent = formatDate(today);
+  document.getElementById('filter-mes').value = new Date().getMonth();
+  document.getElementById('filter-anio').value = new Date().getFullYear();
+  addCableRow();
+  recalcular();
+  renderResumen();
+  // Restore saved gist id
+  const savedGist = localStorage.getItem('gist_id');
+  if (savedGist) document.getElementById('gh-gist-id').value = savedGist;
+});
+
+// ── DATA ────────────────────────────────────────────────────────
+function getData() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch { return []; }
+}
+function saveData(d) { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); }
+
+// ── TABS ────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+  if (name === 'registro') renderRegistro();
+  if (name === 'resumen') renderResumen();
+  if (name === 'datos') {}
+}
+
+// ── CABLE ROWS ──────────────────────────────────────────────────
+let cableRowId = 0;
+function addCableRow() {
+  const id = ++cableRowId;
+  const wrap = document.getElementById('cable-rows');
+  const row = document.createElement('div');
+  row.className = 'cable-row';
+  row.id = 'crow-' + id;
+  row.innerHTML = `
+    <select class="cr-tipo">
+      ${CABLE_TIPOS.map(t => `<option value="${t}">${t}</option>`).join('')}
+    </select>
+    <select class="cr-metodo">
+      <option value="ra">Ra</option>
+      <option value="icx">ICX</option>
+    </select>
+    <input type="number" class="cr-metros" min="0" placeholder="0" oninput="actualizarMetrosTotales()">
+    <button class="remove-btn" onclick="removeCableRow(${id})">✕</button>
+  `;
+  wrap.appendChild(row);
+  actualizarMetrosTotales();
+}
+function removeCableRow(id) {
+  const el = document.getElementById('crow-' + id);
+  if (el) el.remove();
+  actualizarMetrosTotales();
+}
+function getCableRows() {
+  const rows = document.querySelectorAll('.cable-row');
+  return Array.from(rows).map(r => ({
+    tipo: r.querySelector('.cr-tipo').value,
+    metodo: r.querySelector('.cr-metodo').value,
+    metros: parseFloat(r.querySelector('.cr-metros').value) || 0,
+  })).filter(r => r.metros > 0);
+}
+
+function actualizarMetrosTotales() {
+  const totalCable = Array.from(document.querySelectorAll('.cr-metros'))
+    .reduce((s, el) => s + (parseFloat(el.value) || 0), 0);
+  const totalMalla = parseFloat(document.getElementById('inp-malla').value) || 0;
+  const total = totalCable + totalMalla;
+  document.getElementById('inp-metros').value = total || '';
+  recalcular();
+}
+
+// ── RECALCULAR ──────────────────────────────────────────────────
+function recalcular() {
+  const personas = parseInt(document.getElementById('inp-personas').value) || 1;
+  const tipo = document.getElementById('inp-tipo').value;
+  const vIda = parseFloat(document.getElementById('inp-viaje-ida').value) || 0;
+  const vVuelta = parseFloat(document.getElementById('inp-viaje-vuelta').value) || 0;
+
+  // Desplazamiento
+  const tuCargo = 30 + 30; // fijo: 30 ida + 30 vuelta
+  const totalViaje = vIda + vVuelta;
+  const empresaMin = Math.max(0, totalViaje - tuCargo);
+  document.getElementById('disp-empresa-min').textContent = `${empresaMin} min empresa`;
+
+  // Objetivo ajustado al tiempo productivo real
+  const jornadaBase = 480; // 8 horas en minutos
+  const minutosProductivos = Math.max(0, jornadaBase - empresaMin);
+  const factor = minutosProductivos / jornadaBase;
+  const objPerBase = OBJ_M[tipo];
+  const objPer = Math.round(objPerBase * factor);
+  const objEq = objPer * personas;
+  document.getElementById('calc-obj-persona').textContent = objPer + (factor < 1 ? ` (${minutosProductivos}min)` : '');
+  document.getElementById('calc-obj-equipo').textContent = objEq;
+
+  // Barra progreso
+  const metros = parseFloat(document.getElementById('inp-metros').value) || 0;
+  if (metros > 0 && objEq > 0) {
+    const pct = Math.min((metros / objEq) * 100, 150);
+    const pctLabel = ((metros / objEq) * 100).toFixed(1);
+    document.getElementById('barra-wrap').style.display = 'block';
+    document.getElementById('barra-fill').style.width = Math.min(pct, 100) + '%';
+    document.getElementById('barra-pct').textContent = pctLabel + '%';
+    const fill = document.getElementById('barra-fill');
+    fill.className = 'obj-bar-fill';
+    if (pct >= 100) fill.classList.add('');
+    else if (pct >= 80) fill.classList.add('warning');
+    else fill.classList.add('danger');
+  } else {
+    document.getElementById('barra-wrap').style.display = 'none';
+  }
+}
+
+// ── GUARDAR DÍA ─────────────────────────────────────────────────
+function guardarDia() {
+  const fecha = document.getElementById('inp-fecha').value;
+  const personas = parseInt(document.getElementById('inp-personas').value) || 1;
+  const tipo = document.getElementById('inp-tipo').value;
+  const vIda = parseFloat(document.getElementById('inp-viaje-ida').value) || 0;
+  const vVuelta = parseFloat(document.getElementById('inp-viaje-vuelta').value) || 0;
+  const metros = parseFloat(document.getElementById('inp-metros').value) || 0;
+  const malla = parseFloat(document.getElementById('inp-malla').value) || 0;
+  const notas = document.getElementById('inp-notas').value;
+  const cables = getCableRows();
+
+  if (!fecha) { showToast('⚠️ Introduce la fecha', 'warn'); return; }
+  if (metros === 0 && malla === 0) { showToast('⚠️ Introduce metros de cable o de malla', 'warn'); return; }
+
+  const jornadaBase = 480;
+  const tuCargoGuardar = 60;
+  const empresaMinGuardar = Math.max(0, (vIda + vVuelta) - tuCargoGuardar);
+  const minutosProductivosGuardar = Math.max(0, jornadaBase - empresaMinGuardar);
+  const factorGuardar = minutosProductivosGuardar / jornadaBase;
+  const objEq = Math.round(OBJ_M[tipo] * factorGuardar * personas);
+  const cumplimiento = objEq > 0 ? (metros / objEq * 100).toFixed(1) : 0;
+
+  const entry = { fecha, personas, tipo, vIda, vVuelta, metros, malla, cables, notas, objEq, cumplimiento };
+
+  const data = getData();
+  const idx = data.findIndex(d => d.fecha === fecha);
+  if (idx >= 0) { data[idx] = entry; } else { data.push(entry); }
+  data.sort((a, b) => a.fecha.localeCompare(b.fecha));
+  saveData(data);
+
+  showToast('✅ Día guardado correctamente');
+  renderResumen();
+}
+
+// ── REGISTRO ────────────────────────────────────────────────────
+function renderRegistro() {
+  const data = getData();
+  const wrap = document.getElementById('registro-content');
+  if (!data.length) {
+    wrap.innerHTML = '<div class="empty-state"><div class="big">📭</div>Aún no hay días registrados.</div>';
+    return;
+  }
+  const rows = data.slice().reverse().map(d => {
+    const pct = parseFloat(d.cumplimiento);
+    const badge = pct >= 100 ? 'badge-ok' : pct >= 80 ? 'badge-warn' : 'badge-bad';
+    const cablesStr = d.cables && d.cables.length
+      ? d.cables.map(c => `${c.tipo}/${c.metodo.toUpperCase()} ${c.metros}m`).join(', ')
+      : '—';
+    return `<tr>
+      <td>${formatDate(d.fecha)}</td>
+      <td>${d.personas}</td>
+      <td>${TIPOS_LABEL[d.tipo]}</td>
+      <td>${d.metros} m</td>
+      <td>${d.objEq} m</td>
+      <td><span class="badge ${badge}">${pct}%</span></td>
+      <td>${d.malla ? d.malla + ' m' : '—'}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;color:var(--text2)">${cablesStr}</td>
+      <td><button class="del-entry-btn" onclick="deleteEntry('${d.fecha}')">🗑</button></td>
+    </tr>`;
+  }).join('');
+  wrap.innerHTML = `
+    <div class="log-table-wrap">
+    <table>
+      <thead><tr>
+        <th>Fecha</th><th>Pers.</th><th>Tipo</th><th>Metros</th><th>Obj.</th><th>Cumpl.</th><th>Malla</th><th>Cables</th><th></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+}
+
+function deleteEntry(fecha) {
+  if (!confirm(`¿Eliminar el registro del ${formatDate(fecha)}?`)) return;
+  const data = getData().filter(d => d.fecha !== fecha);
+  saveData(data);
+  renderRegistro();
+  renderResumen();
+  showToast('🗑 Registro eliminado');
+}
+
+// ── RESUMEN MENSUAL ─────────────────────────────────────────────
+function renderResumen() {
+  const mes = parseInt(document.getElementById('filter-mes').value);
+  const anio = parseInt(document.getElementById('filter-anio').value);
+  const data = getData().filter(d => {
+    const dt = new Date(d.fecha + 'T00:00:00');
+    return dt.getMonth() === mes && dt.getFullYear() === anio;
+  });
+
+  const wrap = document.getElementById('resumen-content');
+  if (!data.length) {
+    wrap.innerHTML = '<div class="card"><div class="empty-state"><div class="big">📊</div>Sin datos para este mes.</div></div>';
+    return;
+  }
+
+  const dias = data.length;
+  const totalMetros = data.reduce((s, d) => s + d.metros, 0);
+  const totalObj = data.reduce((s, d) => s + d.objEq, 0);
+  const mediaMetros = (totalMetros / dias).toFixed(1);
+  const mediaObj = (totalObj / dias).toFixed(1);
+  const cumplTotal = totalObj > 0 ? (totalMetros / totalObj * 100).toFixed(1) : 0;
+  const totalMalla = data.reduce((s, d) => s + (d.malla || 0), 0);
+  const mediaPersonas = (data.reduce((s, d) => s + d.personas, 0) / dias).toFixed(1);
+
+  // Cable summary
+  const cableMap = {};
+  data.forEach(d => {
+    (d.cables || []).forEach(c => {
+      const key = `${c.tipo}-${c.metodo}`;
+      if (!cableMap[key]) cableMap[key] = { tipo: c.tipo, metodo: c.metodo, metros: 0, bobinas: 0 };
+      cableMap[key].metros += c.metros;
+      cableMap[key].bobinas += c.bobinas || 0;
+    });
+  });
+  const cableRows = Object.values(cableMap).sort((a,b) => b.metros - a.metros);
+  const totalCableMetros = cableRows.reduce((s, c) => s + c.metros, 0);
+
+  const pct = parseFloat(cumplTotal);
+  const barClass = pct >= 100 ? '' : pct >= 80 ? 'warning' : 'danger';
+
+  wrap.innerHTML = `
+    <div class="card">
+      <div class="card-title"><span class="icon">🎯</span> Resultados Globales</div>
+      <div class="summary-grid">
+        <div class="sum-card">
+          <div class="sum-val">${dias}</div>
+          <div class="sum-label">Días trabajados</div>
+          <div class="sum-sub">Media ${mediaPersonas} pers/día</div>
+        </div>
+        <div class="sum-card">
+          <div class="sum-val">${totalMetros.toLocaleString('es-ES')}</div>
+          <div class="sum-label">Metros totales</div>
+          <div class="sum-sub">Media ${mediaMetros} m/día</div>
+        </div>
+        <div class="sum-card">
+          <div class="sum-val" style="color:var(--accent3)">${totalObj.toLocaleString('es-ES')}</div>
+          <div class="sum-label">Objetivo total</div>
+          <div class="sum-sub">Media ${mediaObj} m/día</div>
+        </div>
+        <div class="sum-card">
+          <div class="sum-val" style="color:${pct>=100?'var(--accent2)':pct>=80?'var(--accent)':'var(--danger)'}">${cumplTotal}%</div>
+          <div class="sum-label">Cumplimiento mes</div>
+          <div class="sum-sub">${pct >= 100 ? '✅ Objetivo superado' : pct >= 80 ? '⚠️ Cerca del objetivo' : '❌ Por debajo del objetivo'}</div>
+        </div>
+        ${totalMalla > 0 ? `
+        <div class="sum-card">
+          <div class="sum-val" style="color:var(--accent3)">${totalMalla.toLocaleString('es-ES')}</div>
+          <div class="sum-label">Metros de malla</div>
+          <div class="sum-sub">Total acumulado mes</div>
+        </div>` : ''}
+        ${totalCableMetros > 0 ? `
+        <div class="sum-card">
+          <div class="sum-val" style="color:var(--accent2)">${totalCableMetros.toLocaleString('es-ES')}</div>
+          <div class="sum-label">Metros de cable</div>
+          <div class="sum-sub">${cableRows.length} tipo${cableRows.length !== 1 ? 's' : ''} distintos</div>
+        </div>` : ''}
+      </div>
+      <div class="obj-bar-wrap" style="margin-top:16px">
+        <div class="obj-bar-label"><span>Cumplimiento mensual</span><span>${cumplTotal}%</span></div>
+        <div class="obj-bar-bg"><div class="obj-bar-fill ${barClass}" style="width:${Math.min(pct,100)}%"></div></div>
+      </div>
+    </div>
+
+    ${cableRows.length ? `
+    <div class="card">
+      <div class="card-title"><span class="icon">🔌</span> Cable Consumido en el Mes</div>
+      <div class="log-table-wrap">
+      <table class="cable-sum-table">
+        <thead><tr><th>Tipo</th><th>Método</th><th>Metros totales</th></tr></thead>
+        <tbody>
+          ${cableRows.map(c => `<tr>
+            <td>${c.tipo}</td>
+            <td>${c.metodo.toUpperCase()}</td>
+            <td>${c.metros.toLocaleString('es-ES')} m</td>
+          </tr>`).join('')}
+          ${cableRows.length > 1 ? `<tr style="border-top:2px solid var(--border);font-weight:600">
+            <td colspan="2" style="color:var(--text2)">TOTAL CABLE</td>
+            <td style="color:var(--accent2)">${totalCableMetros.toLocaleString('es-ES')} m</td>
+          </tr>` : ''}
+        </tbody>
+      </table></div>
+    </div>` : ''}
+
+    <div class="card">
+      <div class="card-title"><span class="icon">📅</span> Detalle por Día</div>
+      <div class="log-table-wrap">
+      <table>
+        <thead><tr><th>Fecha</th><th>Pers.</th><th>Tipo</th><th>Metros</th><th>Obj.</th><th>Cumpl.</th><th>Cable tendido</th><th>Notas</th><th></th></tr></thead>
+        <tbody>
+          ${data.map(d => {
+            const p = parseFloat(d.cumplimiento);
+            const b = p>=100?'badge-ok':p>=80?'badge-warn':'badge-bad';
+            const cables = d.cables && d.cables.length ? d.cables : [];
+            const totalCableDia = cables.reduce((s, c) => s + (c.metros || 0), 0);
+            const cableDetalle = cables.length
+              ? cables.map(c => `<span style="display:inline-block;margin-right:6px;white-space:nowrap">${c.tipo} <span style="color:var(--text3)">${c.metodo.toUpperCase()}</span> <strong style="color:var(--accent2)">${c.metros}m</strong></span>`).join('')
+                + (cables.length > 1 ? `<span style="display:block;margin-top:3px;color:var(--accent2);font-weight:600">Total: ${totalCableDia}m</span>` : '')
+              : '<span style="color:var(--text3)">—</span>';
+            return `<tr><td>${formatDate(d.fecha)}</td><td>${d.personas}</td><td>${TIPOS_LABEL[d.tipo]}</td><td>${d.metros}</td><td>${d.objEq}</td><td><span class="badge ${b}">${p}%</span></td><td style="min-width:180px;font-size:11px">${cableDetalle}</td><td style="max-width:200px;font-size:11px;color:var(--text2);white-space:pre-wrap">${d.notas ? d.notas : '<span style=\"color:var(--text3)\">—</span>'}</td><td><button class="del-entry-btn" onclick="cargarDiaParaEditar('${d.fecha}')" title="Editar">✏️</button></td></tr>`;
+          }).join('')}
+        </tbody>
+      </table></div>
+    </div>
+  `;
+}
+
+// ── UTILS ───────────────────────────────────────────────────────
+function formatDate(str) {
+  if (!str) return '';
+  const [y, m, d] = str.split('-');
+  const months = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return `${d} ${months[parseInt(m)-1]} ${y}`;
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = type === 'warn' ? 'var(--accent)' : 'var(--accent2)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+// ── EXPORT JSON ─────────────────────────────────────────────────
+function exportarJSON() {
+  const data = getData();
+  if (!data.length) { showToast('⚠️ No hay datos para exportar', 'warn'); return; }
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `control-obra-${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✅ JSON exportado');
+}
+
+function importarJSON(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (!Array.isArray(imported)) throw new Error('Formato inválido');
+      const existing = getData();
+      const merged = [...existing];
+      let added = 0;
+      imported.forEach(entry => {
+        const idx = merged.findIndex(d => d.fecha === entry.fecha);
+        if (idx >= 0) { merged[idx] = entry; } else { merged.push(entry); added++; }
+      });
+      merged.sort((a, b) => a.fecha.localeCompare(b.fecha));
+      saveData(merged);
+      showToast(`✅ Importados ${imported.length} registros (${added} nuevos)`);
+      renderResumen();
+    } catch {
+      showToast('❌ Archivo JSON inválido', 'warn');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ── EXPORT CSV ──────────────────────────────────────────────────
+function toCSV(rows, headers) {
+  const escape = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  return [headers.map(escape).join(','), ...rows.map(r => r.map(escape).join(','))].join('\n');
+}
+
+function downloadCSV(content, filename) {
+  const BOM = '\uFEFF';
+  const blob = new Blob([BOM + content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportarCSV(scope) {
+  let data = getData();
+  if (scope === 'mes') {
+    const mes = parseInt(document.getElementById('filter-mes').value);
+    const anio = parseInt(document.getElementById('filter-anio').value);
+    data = data.filter(d => {
+      const dt = new Date(d.fecha + 'T00:00:00');
+      return dt.getMonth() === mes && dt.getFullYear() === anio;
+    });
+  }
+  if (!data.length) { showToast('⚠️ No hay datos para exportar', 'warn'); return; }
+
+  const headers = ['Fecha','Personas','Tipo Instalación','Metros Reales','Objetivo Equipo','Cumplimiento %','Viaje Ida (min)','Viaje Vuelta (min)','Malla (m)','Notas'];
+  const rows = data.map(d => [
+    d.fecha, d.personas, TIPOS_LABEL[d.tipo], d.metros, d.objEq, d.cumplimiento,
+    d.vIda, d.vVuelta, d.malla || 0, d.notas || ''
+  ]);
+  downloadCSV(toCSV(rows, headers), `control-obra${scope==='mes'?'-mes':''}-${new Date().toISOString().split('T')[0]}.csv`);
+  showToast('✅ CSV exportado — ábrelo en Excel');
+}
+
+function exportarCSVMes() { exportarCSV('mes'); }
+
+function exportarCSVCables() {
+  const data = getData();
+  if (!data.length) { showToast('⚠️ No hay datos', 'warn'); return; }
+  const headers = ['Fecha','Tipo Cable','Método','Metros','Bobinas','Malla (m)'];
+  const rows = [];
+  data.forEach(d => {
+    if (d.cables && d.cables.length) {
+      d.cables.forEach(c => rows.push([d.fecha, c.tipo, c.metodo.toUpperCase(), c.metros, c.bobinas || 0, d.malla || 0]));
+    } else {
+      rows.push([d.fecha, '—', '—', 0, 0, d.malla || 0]);
+    }
+  });
+  downloadCSV(toCSV(rows, headers), `materiales-${new Date().toISOString().split('T')[0]}.csv`);
+  showToast('✅ CSV de materiales exportado');
+}
+
+// ── CLOUD (GitHub Gist) ──────────────────────────────────────────
+const GIST_FILENAME = 'control-obra-data.json';
+
+function setCloudStatus(ok, msg) {
+  const wrap = document.getElementById('cloud-status');
+  const dot = document.getElementById('cloud-dot');
+  const txt = document.getElementById('cloud-status-text');
+  wrap.style.display = 'flex';
+  dot.className = 'cloud-dot' + (ok ? '' : ' off');
+  txt.textContent = msg;
+}
+
+async function subirNube() {
+  const token = document.getElementById('gh-token').value.trim();
+  if (!token) { showToast('⚠️ Introduce el GitHub Token', 'warn'); return; }
+  const data = getData();
+  if (!data.length) { showToast('⚠️ No hay datos para subir', 'warn'); return; }
+
+  setCloudStatus(false, 'Subiendo...');
+  const body = JSON.stringify(data, null, 2);
+  let gistId = document.getElementById('gh-gist-id').value.trim();
+
+  try {
+    let res, json;
+    if (gistId) {
+      // Update existing gist
+      res = await fetch(`https://api.github.com/gists/${gistId}`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files: { [GIST_FILENAME]: { content: body } } })
+      });
+    } else {
+      // Create new gist
+      res = await fetch('https://api.github.com/gists', {
+        method: 'POST',
+        headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: 'Control de Obra - Datos', public: false, files: { [GIST_FILENAME]: { content: body } } })
+      });
+    }
+    json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Error');
+    gistId = json.id;
+    document.getElementById('gh-gist-id').value = gistId;
+    localStorage.setItem('gist_id', gistId);
+    setCloudStatus(true, `✅ Datos subidos · Gist ID: ${gistId}`);
+    showToast('☁️ Datos sincronizados en la nube');
+  } catch(err) {
+    setCloudStatus(false, '❌ Error: ' + err.message);
+    showToast('❌ Error al subir: ' + err.message, 'warn');
+  }
+}
+
+async function bajarNube() {
+  const token = document.getElementById('gh-token').value.trim();
+  let gistId = document.getElementById('gh-gist-id').value.trim() || localStorage.getItem('gist_id');
+  if (!token || !gistId) { showToast('⚠️ Introduce el Token y el Gist ID', 'warn'); return; }
+
+  setCloudStatus(false, 'Descargando...');
+  try {
+    const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+      headers: { 'Authorization': `token ${token}` }
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Error');
+    const content = json.files[GIST_FILENAME]?.content;
+    if (!content) throw new Error('Archivo no encontrado en el Gist');
+    const imported = JSON.parse(content);
+    saveData(imported);
+    document.getElementById('gh-gist-id').value = gistId;
+    localStorage.setItem('gist_id', gistId);
+    setCloudStatus(true, `✅ ${imported.length} registros descargados`);
+    showToast(`✅ ${imported.length} registros descargados de la nube`);
+    renderResumen();
+  } catch(err) {
+    setCloudStatus(false, '❌ Error: ' + err.message);
+    showToast('❌ Error al descargar: ' + err.message, 'warn');
+  }
+}
+
+
+// ── EDITAR DÍA DESDE RESUMEN ────────────────────────────────────
+function cargarDiaParaEditar(fecha) {
+  const data = getData();
+  const d = data.find(e => e.fecha === fecha);
+  if (!d) return;
+
+  // Cambiar a pestaña Entrada Diaria
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-entrada').classList.add('active');
+  document.querySelector('.tab-btn[onclick*="entrada"]').classList.add('active');
+
+  // Rellenar campos
+  document.getElementById('inp-fecha').value = d.fecha;
+  document.getElementById('inp-personas').value = d.personas;
+  document.getElementById('inp-tipo').value = d.tipo;
+  document.getElementById('inp-viaje-ida').value = d.vIda || 0;
+  document.getElementById('inp-viaje-vuelta').value = d.vVuelta || 0;
+  document.getElementById('inp-malla').value = d.malla || 0;
+  document.getElementById('inp-notas').value = d.notas || '';
+
+  // Restaurar líneas de cable
+  const wrap = document.getElementById('cable-rows');
+  wrap.innerHTML = '';
+  cableRowId = 0;
+  if (d.cables && d.cables.length) {
+    d.cables.forEach(c => {
+      const id = ++cableRowId;
+      const row = document.createElement('div');
+      row.className = 'cable-row';
+      row.id = 'crow-' + id;
+      row.innerHTML = `
+        <select class="cr-tipo">
+          ${CABLE_TIPOS.map(t => `<option value="${t}" ${t === c.tipo ? 'selected' : ''}>${t}</option>`).join('')}
+        </select>
+        <select class="cr-metodo">
+          <option value="ra" ${c.metodo === 'ra' ? 'selected' : ''}>Ra</option>
+          <option value="icx" ${c.metodo === 'icx' ? 'selected' : ''}>ICX</option>
+        </select>
+        <input type="number" class="cr-metros" min="0" placeholder="0" value="${c.metros || 0}" oninput="actualizarMetrosTotales()">
+        <button class="remove-btn" onclick="removeCableRow(${id})">✕</button>
+      `;
+      wrap.appendChild(row);
+    });
+  } else {
+    addCableRow();
+  }
+
+  actualizarMetrosTotales();
+  showToast('✏️ Editando día ' + formatDate(fecha));
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── BORRAR TODO ──────────────────────────────────────────────────
+function borrarTodo() {
+  const data = getData();
+  if (!data.length) { showToast('⚠️ No hay datos que borrar', 'warn'); return; }
+  if (!confirm(`⚠️ ¿Borrar TODOS los ${data.length} registros? Esta acción no se puede deshacer.\n\nAsegúrate de haber exportado un backup primero.`)) return;
+  localStorage.removeItem(STORAGE_KEY);
+  showToast('🗑 Todos los datos eliminados');
+  renderResumen();
+}
+</script>
+<div id="toast" class="toast"></div>
+</body>
+</html>
