@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Control de Obra v11 · Tendido de Cable</title>
+<title>Control de Obra v12 · Tendido de Cable</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -645,6 +645,11 @@
           <div class="db-icon">⬇️</div>
           <div class="db-title">Exportar JSON</div>
           <div class="db-desc">Descarga un archivo .json con todos tus registros. Guárdalo en Drive, email o USB.</div>
+        </button>
+        <button class="data-btn blue" onclick="compartirJSON()">
+          <div class="db-icon">📤</div>
+          <div class="db-title">Compartir JSON</div>
+          <div class="db-desc">Comparte el archivo por Drive, WhatsApp, email u otras apps.</div>
         </button>
         <button class="data-btn blue" onclick="document.getElementById('import-input').click()">
           <div class="db-icon">⬆️</div>
@@ -1288,6 +1293,29 @@ function cargarDiaParaEditar(fecha) {
   actualizarMetrosTotales();
   showToast('✏️ Editando día ' + formatDate(fecha));
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+
+// ── COMPARTIR JSON ───────────────────────────────────────────────
+async function compartirJSON() {
+  const data = getData();
+  const json = JSON.stringify(data, null, 2);
+  const filename = `control-obra-${new Date().toISOString().split('T')[0]}.json`;
+  if (navigator.share && navigator.canShare) {
+    try {
+      const file = new File([json], filename, { type: 'application/json' });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: filename });
+        return;
+      }
+    } catch(e) {}
+  }
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  a.click(); URL.revokeObjectURL(url);
+  showToast('⬇️ JSON descargado');
 }
 
 // ── BORRAR TODO ──────────────────────────────────────────────────
