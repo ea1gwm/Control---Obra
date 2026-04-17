@@ -1,0 +1,12 @@
+{
+  "name": "Control de Obra",
+  "short_name": "Obra",
+  "description": "Control diario de producción y tendido de cable",
+  "start_url": "/Control---Obra/",
+  "scope": "/Control---Obra/",
+  "display": "standalone",
+  "background_color": "#0d1117",
+  "theme_color": "#f59e0b",
+  "orientation": "portrait-primary",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
