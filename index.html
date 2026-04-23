@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Control de Obra · Tendido de Cable</title>
+<title>Control de Obra v14 · Tendido de Cable</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -467,7 +467,21 @@
     header h1 { font-size: 22px; }
     .summary-grid { grid-template-columns: 1fr 1fr; }
   }
-</style>
+
+  /* PROD ROWS */
+  .prod-row-header { display: grid; grid-template-columns: 130px 1fr 80px 70px 36px; gap: 8px; padding: 0 10px 6px; }
+  .prod-row-header span { font-size: 10px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; }
+  .prod-row { display: grid; grid-template-columns: 130px 1fr 80px 70px 36px; gap: 8px; align-items: center; background: var(--bg); padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 6px; }
+  .prod-row select { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 7px 10px; border-radius: 6px; font-family: DM Sans, sans-serif; font-size: 13px; outline: none; }
+  .prod-row select:focus { border-color: var(--accent); }
+  .prod-row .pr-obj { font-family: DM Mono, monospace; font-size: 12px; color: var(--accent3); }
+  .prod-row .pr-cumpl { font-family: DM Mono, monospace; font-size: 12px; }
+  @media (max-width: 600px) {
+    .prod-row, .prod-row-header { grid-template-columns: 1fr 1fr; }
+    .prod-row .pr-obj, .prod-row .pr-cumpl, .prod-row-header span:nth-child(3), .prod-row-header span:nth-child(4) { display: none; }
+  }
+
+  </style>
   <link rel="manifest" href="manifest.json">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -512,16 +526,6 @@
           <label>Nº Personas en equipo</label>
           <input type="number" id="inp-personas" min="1" max="12" value="1" oninput="recalcular()">
         </div>
-        <div class="form-group">
-          <label>Tipo de instalación</label>
-          <select id="inp-tipo" onchange="recalcular()">
-            <option value="poste">Postes (cualquier cable)</option>
-            <option value="icx">ICX</option>
-            <option value="ra">Ra</option>
-            <option value="malla">Malla</option>
-          </select>
-        </div>
-      </div>
     </div>
 
     <!-- DESPLAZAMIENTO -->
@@ -563,20 +567,24 @@
 
     <!-- PRODUCCIÓN REAL -->
     <div class="card">
-      <div class="card-title"><span class="icon">📏</span> Metros Realizados Hoy</div>
-      <div class="form-grid">
-        <div class="form-group">
-          <label>Metros realizados hoy <span style="font-size:10px;color:var(--accent2);font-weight:500;text-transform:none;letter-spacing:0">(suma automática del cable)</span></label>
-          <input type="number" id="inp-metros" min="0" placeholder="0" readonly style="background:var(--surface2);color:var(--accent2);font-weight:600;cursor:default;border-color:var(--accent2)">
-        </div>
+      <div class="card-title"><span class="icon">📏</span> Producción del Día</div>
+      <p style="font-size:11px;color:var(--text3);margin:-8px 0 14px">Añade una línea por cada tipo de trabajo realizado (Ra, Malla, Poste, ICX).</p>
+      <div class="prod-row-header">
+        <span>Tipo</span>
+        <span>Metros realizados</span>
+        <span>Objetivo</span>
+        <span>Cumpl.</span>
+        <span></span>
       </div>
-      <!-- Barra objetivo -->
+      <div id="prod-rows"></div>
+      <button class="add-cable-btn" onclick="addProdRow()">＋ Añadir tipo de trabajo</button>
+      <!-- Barra objetivo global -->
       <div class="obj-bar-wrap" id="barra-wrap" style="margin-top:14px;display:none">
         <div class="obj-bar-label">
-          <span id="barra-label">Cumplimiento</span>
+          <span id="barra-label">Cumplimiento global</span>
           <span id="barra-pct">0%</span>
         </div>
-        <div class="obj-bar-bg"><div class="obj-bar-fill" id="barra-fill" style="width:0%"></div></div>
+        <div class="obj-bar-bg"><div class="obj-bar-fill" id="barra-fill" style="width:0"></div></div>
       </div>
     </div>
 
@@ -746,12 +754,15 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('headerDate').textContent = formatDate(today);
   document.getElementById('filter-mes').value = new Date().getMonth();
   document.getElementById('filter-anio').value = new Date().getFullYear();
+  addProdRow();
   addCableRow();
   recalcular();
   renderResumen();
   // Restore saved gist id
   const savedGist = localStorage.getItem('gist_id');
   if (savedGist) document.getElementById('gh-gist-id').value = savedGist;
+  const savedToken = localStorage.getItem('ghtoken');
+  if (savedToken) document.getElementById('gh-token').value = savedToken;
 });
 
 // ── DATA ────────────────────────────────────────────────────────
@@ -818,36 +829,74 @@ function actualizarMetrosTotales() {
 }
 
 // ── RECALCULAR ──────────────────────────────────────────────────
+// ── FILAS DE PRODUCCIÓN ─────────────────────────────────────────
+let prodRowId = 0;
+const TIPOS_PROD = [
+  { value: 'ra',    label: 'Ra',    obj: 165 },
+  { value: 'poste', label: 'Poste', obj: 145 },
+  { value: 'icx',   label: 'ICX',   obj: 140 },
+  { value: 'malla', label: 'Malla', obj: 160 },
+];
+
+function addProdRow(tipo = 'ra', metros = '') {
+  const id = prodRowId++;
+  const wrap = document.getElementById('prod-rows');
+  const row = document.createElement('div');
+  row.className = 'prod-row';
+  row.id = 'prow-' + id;
+  const opts = TIPOS_PROD.map(t => `<option value="${t.value}"${t.value === tipo ? ' selected' : ''}>${t.label} (obj: ${t.obj}m/pers)</option>`).join('');
+  row.innerHTML = `
+    <select class="pr-tipo" onchange="recalcular()">${opts}</select>
+    <input type="number" class="pr-metros" min="0" placeholder="0" oninput="recalcular()" value="${metros}">
+    <span class="pr-obj" style="font-family:DM Mono,monospace;font-size:12px;color:var(--accent3)">—</span>
+    <span class="pr-cumpl" style="font-family:DM Mono,monospace;font-size:12px">—</span>
+    <button class="remove-btn" onclick="removeProdRow(${id})">✕</button>`;
+  wrap.appendChild(row);
+  recalcular();
+}
+
+function removeProdRow(id) {
+  const el = document.getElementById('prow-' + id);
+  if (el) { el.remove(); recalcular(); }
+}
+
 function recalcular() {
   const personas = parseInt(document.getElementById('inp-personas').value) || 1;
-  const tipo = document.getElementById('inp-tipo').value;
   const vIda = parseFloat(document.getElementById('inp-viaje-ida').value) || 0;
   const vVuelta = parseFloat(document.getElementById('inp-viaje-vuelta').value) || 0;
 
   // Desplazamiento
-  const tuCargo = 30 + 30; // fijo: 30 ida + 30 vuelta
+  const tuCargo = 60;
   const totalViaje = vIda + vVuelta;
   const empresaMin = Math.max(0, totalViaje - tuCargo);
   document.getElementById('disp-empresa-min').textContent = `${empresaMin} min empresa`;
 
-  // Objetivo ajustado al tiempo productivo real
-  const jornadaBase = 480; // 8 horas en minutos
-  const minutosProductivos = Math.max(0, jornadaBase - empresaMin);
-  const factor = minutosProductivos / jornadaBase;
-  const objPerBase = OBJ_M[tipo];
-  const objPer = Math.round(objPerBase * factor);
-  const objEq = objPer * personas;
-  document.getElementById('calc-obj-persona').textContent = objPer + (factor < 1 ? ` (${minutosProductivos}min)` : '');
-  document.getElementById('calc-obj-equipo').textContent = objEq;
+  // Factor tiempo productivo
+  const jornadaBase = 480;
+  const minProd = Math.max(0, jornadaBase - empresaMin);
+  const factor = minProd / jornadaBase;
 
-  // Barra progreso
-  const metros = parseFloat(document.getElementById('inp-metros').value) || 0;
-  if (metros > 0 && objEq > 0) {
-    const pct = Math.min((metros / objEq) * 100, 150);
-    const pctLabel = ((metros / objEq) * 100).toFixed(1);
+  // Actualizar cada fila de producción
+  let totalMetros = 0, totalObj = 0;
+  document.querySelectorAll('.prod-row').forEach(row => {
+    const tipo = row.querySelector('.pr-tipo').value;
+    const metros = parseFloat(row.querySelector('.pr-metros').value) || 0;
+    const objLinea = Math.round(OBJ_M[tipo] * factor * personas);
+    const cumplLinea = objLinea > 0 ? (metros / objLinea * 100).toFixed(1) : '—';
+    row.querySelector('.pr-obj').textContent = objLinea + 'm';
+    const cumplEl = row.querySelector('.pr-cumpl');
+    cumplEl.textContent = metros > 0 ? cumplLinea + '%' : '—';
+    const pctNum = parseFloat(cumplLinea) || 0;
+    cumplEl.style.color = pctNum >= 100 ? 'var(--accent2)' : pctNum >= 80 ? 'var(--accent)' : 'var(--danger)';
+    if (metros > 0) { totalMetros += metros; totalObj += objLinea; }
+  });
+
+  // Barra global
+  if (totalMetros > 0 && totalObj > 0) {
+    const pct = (totalMetros / totalObj * 100);
     document.getElementById('barra-wrap').style.display = 'block';
     document.getElementById('barra-fill').style.width = Math.min(pct, 100) + '%';
-    document.getElementById('barra-pct').textContent = pctLabel + '%';
+    document.getElementById('barra-pct').textContent = pct.toFixed(1) + '%';
     const fill = document.getElementById('barra-fill');
     fill.className = 'obj-bar-fill';
     if (pct >= 100) fill.classList.add('');
@@ -862,33 +911,49 @@ function recalcular() {
 function guardarDia() {
   const fecha = document.getElementById('inp-fecha').value;
   const personas = parseInt(document.getElementById('inp-personas').value) || 1;
-  const tipo = document.getElementById('inp-tipo').value;
   const vIda = parseFloat(document.getElementById('inp-viaje-ida').value) || 0;
   const vVuelta = parseFloat(document.getElementById('inp-viaje-vuelta').value) || 0;
-  const metros = parseFloat(document.getElementById('inp-metros').value) || 0;
-  const malla = parseFloat(document.getElementById('inp-malla').value) || 0;
   const notas = document.getElementById('inp-notas').value;
   const cables = getCableRows();
 
   if (!fecha) { showToast('⚠️ Introduce la fecha', 'warn'); return; }
-  if (metros === 0 && malla === 0) { showToast('⚠️ Introduce metros de cable o de malla', 'warn'); return; }
 
+  // Líneas de producción
+  const prodRows = [];
+  document.querySelectorAll('.prod-row').forEach(row => {
+    const tipo = row.querySelector('.pr-tipo').value;
+    const metros = parseFloat(row.querySelector('.pr-metros').value) || 0;
+    if (metros > 0) prodRows.push({ tipo, metros });
+  });
+  if (prodRows.length === 0) { showToast('⚠️ Añade al menos una línea de producción', 'warn'); return; }
+
+  // Calcular objetivos y cumplimiento
   const jornadaBase = 480;
-  const tuCargoGuardar = 60;
-  const empresaMinGuardar = Math.max(0, (vIda + vVuelta) - tuCargoGuardar);
-  const minutosProductivosGuardar = Math.max(0, jornadaBase - empresaMinGuardar);
-  const factorGuardar = minutosProductivosGuardar / jornadaBase;
-  const objEq = Math.round(OBJ_M[tipo] * factorGuardar * personas);
-  const cumplimiento = objEq > 0 ? (metros / objEq * 100).toFixed(1) : 0;
+  const empresaMin = Math.max(0, (vIda + vVuelta) - 60);
+  const factor = Math.max(0, jornadaBase - empresaMin) / jornadaBase;
+  let totalMetros = 0, totalObj = 0;
+  const prodDetalle = prodRows.map(r => {
+    const objLinea = Math.round(OBJ_M[r.tipo] * factor * personas);
+    totalMetros += r.metros;
+    totalObj += objLinea;
+    return { ...r, objLinea, cumplLinea: objLinea > 0 ? (r.metros / objLinea * 100).toFixed(1) : 0 };
+  });
+  const cumplimiento = totalObj > 0 ? (totalMetros / totalObj * 100).toFixed(1) : 0;
+  const mediaPersona = (totalMetros / personas).toFixed(0);
 
-  const entry = { fecha, personas, tipo, vIda, vVuelta, metros, malla, cables, notas, objEq, cumplimiento };
+  // Compatibilidad: metros principal = suma total, tipo = primer tipo
+  const metros = totalMetros;
+  const malla = prodDetalle.filter(r => r.tipo === 'malla').reduce((s, r) => s + r.metros, 0);
+  const tipo = prodDetalle[0].tipo;
+
+  const entry = { fecha, personas, tipo, vIda, vVuelta, metros, malla, cables, notas,
+                  objEq: totalObj, cumplimiento, prodDetalle, mediaPersona };
 
   const data = getData();
   const idx = data.findIndex(d => d.fecha === fecha);
   if (idx >= 0) { data[idx] = entry; } else { data.push(entry); }
   data.sort((a, b) => a.fecha.localeCompare(b.fecha));
   saveData(data);
-
   showToast('✅ Día guardado correctamente');
   renderResumen();
 }
@@ -907,35 +972,29 @@ function renderRegistro() {
     const cablesStr = d.cables && d.cables.length
       ? d.cables.map(c => `${c.tipo}/${c.metodo.toUpperCase()} ${c.metros}m`).join(', ')
       : '—';
+    // Líneas de producción
+    const prodStr = d.prodDetalle && d.prodDetalle.length
+      ? d.prodDetalle.map(r => `${r.tipo.toUpperCase()} ${r.metros}m`).join(' + ')
+      : (d.metros ? `${d.metros}m` : '—');
+    const mediaP = d.mediaPersona || (d.metros && d.personas ? Math.round(d.metros / d.personas) : '—');
     return `<tr>
       <td>${formatDate(d.fecha)}</td>
       <td>${d.personas}</td>
-      <td>${TIPOS_LABEL[d.tipo]}</td>
-      <td>${d.metros} m</td>
-      <td>${d.objEq} m</td>
+      <td style="color:var(--text2);font-size:11px">${prodStr}</td>
+      <td>${d.metros || 0} m</td>
+      <td style="color:var(--accent3)">${d.objEq} m</td>
       <td><span class="badge ${badge}">${pct}%</span></td>
-      <td>${d.malla ? d.malla + ' m' : '—'}</td>
-      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;color:var(--text2)">${cablesStr}</td>
-      <td><button class="del-entry-btn" onclick="deleteEntry('${d.fecha}')">🗑</button></td>
+      <td style="color:var(--text2)">${mediaP} m</td>
+      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;color:var(--text2)">${cablesStr}</td>
+      <td><button class="del-entry-btn" onclick="deleteEntry('${d.fecha}')">✕</button></td>
     </tr>`;
   }).join('');
-  wrap.innerHTML = `
-    <div class="log-table-wrap">
-    <table>
-      <thead><tr>
-        <th>Fecha</th><th>Pers.</th><th>Tipo</th><th>Metros</th><th>Obj.</th><th>Cumpl.</th><th>Malla</th><th>Cables</th><th></th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table></div>`;
-}
-
-function deleteEntry(fecha) {
-  if (!confirm(`¿Eliminar el registro del ${formatDate(fecha)}?`)) return;
-  const data = getData().filter(d => d.fecha !== fecha);
-  saveData(data);
-  renderRegistro();
-  renderResumen();
-  showToast('🗑 Registro eliminado');
+  wrap.innerHTML = `<div class="log-table-wrap"><table>
+    <thead><tr>
+      <th>Fecha</th><th>Pers.</th><th>Producción</th><th>Total</th><th>Obj.</th><th>Cumpl.</th><th>Media/pers</th><th>Cables</th><th></th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
 }
 
 // ── RESUMEN MENSUAL ─────────────────────────────────────────────
@@ -1188,6 +1247,7 @@ function setCloudStatus(ok, msg) {
 
 async function subirNube() {
   const token = document.getElementById('gh-token').value.trim();
+  if (token) localStorage.setItem('ghtoken', token);
   if (!token) { showToast('⚠️ Introduce el GitHub Token', 'warn'); return; }
   const data = getData();
   if (!data.length) { showToast('⚠️ No hay datos para subir', 'warn'); return; }
@@ -1228,6 +1288,7 @@ async function subirNube() {
 
 async function bajarNube() {
   const token = document.getElementById('gh-token').value.trim();
+  if (token) localStorage.setItem('ghtoken', token);
   let gistId = document.getElementById('gh-gist-id').value.trim() || localStorage.getItem('gist_id');
   if (!token || !gistId) { showToast('⚠️ Introduce el Token y el Gist ID', 'warn'); return; }
 
@@ -1313,31 +1374,16 @@ async function compartirJSON() {
   const data = getData();
   const json = JSON.stringify(data, null, 2);
   const filename = `control-obra-${new Date().toISOString().split('T')[0]}.json`;
-
-  // Intentar compartir como archivo de texto (más compatible en Android)
   if (navigator.share) {
-    try {
-      const file = new File([json], filename, { type: 'text/plain' });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'Backup Control de Obra', text: filename });
-        return;
-      }
-      // Si no puede compartir archivo, compartir como texto
-      await navigator.share({ title: 'Backup Control de Obra', text: json });
-      return;
-    } catch(e) {
-      if (e.name !== 'AbortError') {
-        // Fallback descarga
-      } else { return; }
-    }
+    navigator.share({ title: filename, text: json }).catch(() => {});
+  } else {
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    a.click(); URL.revokeObjectURL(url);
+    showToast('\u2B07\uFE0F JSON descargado');
   }
-  // Fallback: descarga normal
-  const blob = new Blob([json], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  a.click(); URL.revokeObjectURL(url);
-  showToast('⬇️ JSON descargado');
 }
 
 // ── BORRAR TODO ──────────────────────────────────────────────────
