@@ -1,405 +1,1317 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Control de Obra</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0f172a">
-<style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
-*{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0f172a;--bg2:#1e293b;--bg3:#334155;--border:#334155;--text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;--accent:#f59e0b;--accent2:#10b981;--accent3:#60a5fa;--danger:#ef4444}
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-header{background:var(--bg2);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
-header h1{font-size:18px;font-weight:700}
-.ver{font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);font-weight:400;margin-left:8px}
-.date-badge{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3)}
-.tabs{display:flex;gap:2px;padding:10px 14px 0;background:var(--bg2);border-bottom:1px solid var(--border);overflow-x:auto}
-.tab-btn{background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);padding:8px 13px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;white-space:nowrap;transition:all .2s;border-radius:6px 6px 0 0}
-.tab-btn:hover{color:var(--text);background:var(--bg3)}
-.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);background:var(--bg3)}
-.tab-content{display:none;padding:16px;max-width:820px;margin:0 auto}
-.tab-content.active{display:block}
-.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px}
-.card-title{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.form-group{display:flex;flex-direction:column;gap:5px}
-label{font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
-input,select,textarea{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px 11px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .2s;width:100%}
-input:focus,select:focus,textarea:focus{border-color:var(--accent)}
-textarea{resize:vertical;min-height:75px}
-.travel-note{font-size:11px;color:var(--text3);margin-top:8px;grid-column:1/-1;line-height:1.5}
-.save-btn{width:100%;padding:13px;background:var(--accent);color:#000;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px;transition:opacity .2s}
-.save-btn:hover{opacity:.85}
-.prod-header{display:grid;grid-template-columns:100px 90px 1fr 68px 58px 32px;gap:6px;padding:0 6px 6px}
-.prod-header span{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.6px}
-.prod-row{display:grid;grid-template-columns:100px 90px 1fr 68px 58px 32px;gap:6px;align-items:center;background:var(--bg);padding:7px 6px;border-radius:8px;border:1px solid var(--border);margin-bottom:6px}
-.prod-row select,.prod-row input{background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:6px 7px;border-radius:6px;font-size:13px;width:100%}
-.pr-obj{font-family:'DM Mono',monospace;font-size:11px;color:var(--accent3)}
-.pr-cumpl{font-family:'DM Mono',monospace;font-size:11px;font-weight:600}
-.rm-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:4px;border-radius:4px}
-.rm-btn:hover{color:var(--danger);background:rgba(239,68,68,.1)}
-.add-btn{background:none;border:1px dashed var(--border);color:var(--text3);padding:8px;border-radius:8px;cursor:pointer;font-size:13px;width:100%;margin-top:4px;transition:all .2s}
-.add-btn:hover{border-color:var(--accent);color:var(--accent)}
-.bar-wrap{margin-top:12px;display:none}
-.bar-label{display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:5px}
-.bar-bg{background:var(--bg3);border-radius:6px;height:9px;overflow:hidden}
-.bar-fill{height:100%;background:var(--accent2);border-radius:6px;transition:width .4s}
-.tbl-wrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:8px 9px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
-td{padding:9px 9px;border-bottom:1px solid var(--bg3)}
-tr:hover td{background:var(--bg3)}
-.badge{padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;font-family:'DM Mono',monospace}
-.ok{background:rgba(16,185,129,.15);color:var(--accent2)}
-.warn{background:rgba(245,158,11,.15);color:var(--accent)}
-.bad{background:rgba(239,68,68,.15);color:var(--danger)}
-.ic-btn{background:none;border:none;cursor:pointer;font-size:15px;padding:3px 4px;border-radius:4px}
-.ic-btn:hover{background:var(--bg3)}
-.sum-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
-.sum-card{background:var(--bg3);border-radius:10px;padding:13px;text-align:center}
-.sum-val{font-size:26px;font-weight:700;font-family:'DM Mono',monospace}
-.sum-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-top:3px}
-.btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.data-btn{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:15px;cursor:pointer;text-align:left;transition:border-color .2s;width:100%}
-.data-btn:hover{border-color:var(--accent)}
-.db-icon{font-size:22px;margin-bottom:7px}
-.db-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:3px}
-.db-desc{font-size:12px;color:var(--text3)}
-.sync-info{font-size:11px;color:var(--text3);margin-top:8px}
-.danger{border-color:var(--danger)!important}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--bg2);border:1px solid var(--accent2);color:var(--text);padding:10px 20px;border-radius:20px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:999;white-space:nowrap}
-.toast.show{opacity:1}
-.empty{text-align:center;padding:40px 20px;color:var(--text3)}
-.empty .big{font-size:46px;margin-bottom:10px}
-@media(max-width:600px){
-  .form-grid{grid-template-columns:1fr}
-  .btn-grid{grid-template-columns:1fr}
-  .prod-row,.prod-header{grid-template-columns:90px 80px 1fr 32px}
-  .pr-obj,.pr-cumpl,.prod-header span:nth-child(4),.prod-header span:nth-child(5){display:none}
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="description" content="Control de producción diaria — Equipo de fibra óptica">
+  <link rel="manifest" href="manifest.json">
+  <title>FibraControl — Producción Diaria</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0f172a;
+      --card:    #1e293b;
+      --border:  #334155;
+      --yellow:  #f59e0b;
+      --green:   #10b981;
+      --blue:    #60a5fa;
+      --red:     #ef4444;
+      --text:    #e2e8f0;
+      --muted:   #94a3b8;
+      --font:    'DM Sans', sans-serif;
+      --mono:    'DM Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      font-size: 15px;
+    }
+
+    /* ── NAV ───────────────────────────────────── */
+    nav {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 0 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    nav::-webkit-scrollbar { display: none; }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.25rem 0.75rem 0;
+      margin-right: 0.5rem;
+      border-right: 1px solid var(--border);
+      color: var(--yellow);
+      font-weight: 700;
+      font-size: 0.9rem;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      user-select: none;
+    }
+    .nav-logo span { font-size: 1.2rem; }
+
+    .nav-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-family: var(--font);
+      font-size: 0.83rem;
+      font-weight: 500;
+      padding: 0 0.9rem;
+      height: 52px;
+      cursor: pointer;
+      white-space: nowrap;
+      border-bottom: 2px solid transparent;
+      border-top: 2px solid transparent;
+      transition: color .15s, border-color .15s;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .nav-btn:hover { color: var(--text); }
+    .nav-btn.active { color: var(--yellow); border-bottom-color: var(--yellow); }
+
+    /* ── MAIN LAYOUT ───────────────────────────── */
+    main { max-width: 1120px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+
+    .tab-content { display: none; animation: fadeIn .2s ease; }
+    .tab-content.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    /* ── SECTION TITLE ─────────────────────────── */
+    .section-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin-bottom: 1.25rem;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* ── CARD ──────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.875rem;
+      padding: 1.25rem 1.375rem;
+      margin-bottom: 1rem;
+    }
+    .card-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 1rem;
+    }
+
+    /* ── GRID HELPERS ──────────────────────────── */
+    .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .g3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; }
+    .g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; }
+    .gauto { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap: 1rem; }
+
+    @media (max-width: 600px) {
+      .g2 { grid-template-columns: 1fr; }
+      .g3 { grid-template-columns: 1fr 1fr; }
+      .g4 { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 400px) {
+      .g3, .g4 { grid-template-columns: 1fr; }
+    }
+
+    /* ── FORM ELEMENTS ─────────────────────────── */
+    label {
+      display: block;
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+    input, select, textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 0.9rem;
+      padding: 0.55rem 0.8rem;
+      transition: border-color .15s, box-shadow .15s;
+      outline: none;
+      -webkit-appearance: none;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 2px rgba(96,165,250,.15);
+    }
+    input[type="number"], input[type="date"] { font-family: var(--mono); }
+    textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
+    select option { background: var(--card); }
+
+    /* ── BUTTONS ───────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.55rem 1.1rem;
+      border-radius: 0.5rem;
+      border: none;
+      font-family: var(--font);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+      white-space: nowrap;
+    }
+    .btn:hover { opacity: .85; }
+    .btn:active { transform: scale(.97); }
+    .btn-yellow { background: var(--yellow); color: #000; }
+    .btn-green  { background: var(--green);  color: #000; }
+    .btn-blue   { background: var(--blue);   color: #000; }
+    .btn-red    { background: var(--red);    color: #fff; }
+    .btn-ghost  { background: var(--border); color: var(--text); }
+    .btn-sm     { padding: .32rem .65rem; font-size: .78rem; }
+    .btn-full   { width: 100%; justify-content: center; font-size: .95rem; padding: .75rem; }
+
+    /* ── INFO BOX ──────────────────────────────── */
+    .info-box {
+      background: rgba(96,165,250,.07);
+      border: 1px solid rgba(96,165,250,.2);
+      border-radius: .6rem;
+      padding: .7rem 1rem;
+      font-size: .8rem;
+      color: #93c5fd;
+      margin-bottom: 1rem;
+      line-height: 1.6;
+    }
+    .info-box strong { color: var(--blue); }
+
+    /* ── PRODUCTION TABLE (Entrada) ─────────────── */
+    .prod-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .prod-table { width: 100%; border-collapse: collapse; min-width: 520px; }
+    .prod-table th {
+      font-size: .72rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      padding: .45rem .6rem .6rem;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      white-space: nowrap;
+    }
+    .prod-table td {
+      padding: .4rem .5rem;
+      vertical-align: middle;
+      border-bottom: 1px solid rgba(51,65,85,.45);
+    }
+    .prod-table tr:last-child td { border-bottom: none; }
+
+    .row-del {
+      background: none;
+      border: none;
+      color: var(--red);
+      cursor: pointer;
+      font-size: 1rem;
+      padding: .25rem .4rem;
+      border-radius: .35rem;
+      opacity: .55;
+      transition: opacity .15s, background .15s;
+      line-height: 1;
+    }
+    .row-del:hover { opacity: 1; background: rgba(239,68,68,.12); }
+
+    /* ── PROGRESS BAR ──────────────────────────── */
+    .prog-wrap { margin-top: 1.25rem; }
+    .prog-head { display: flex; justify-content: space-between; align-items: baseline; font-size: .8rem; color: var(--muted); margin-bottom: .4rem; }
+    .prog-head strong { font-family: var(--mono); font-size: .95rem; }
+    .prog-track { background: var(--border); border-radius: 999px; height: 10px; overflow: hidden; }
+    .prog-bar { height: 100%; border-radius: 999px; transition: width .4s ease, background .3s; }
+    .prog-detail { font-size: .78rem; color: var(--muted); margin-top: .4rem; font-family: var(--mono); }
+
+    /* ── BADGE ─────────────────────────────────── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: .18rem .55rem;
+      border-radius: 999px;
+      font-size: .76rem;
+      font-weight: 700;
+      font-family: var(--mono);
+      white-space: nowrap;
+    }
+    .bg  { background: rgba(16,185,129,.14); color: var(--green);  }
+    .by  { background: rgba(245,158,11,.14); color: var(--yellow); }
+    .br  { background: rgba(239,68,68,.14);  color: var(--red);    }
+
+    /* ── REGISTRO TABLE ────────────────────────── */
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: .83rem; min-width: 700px; }
+    .data-table th {
+      background: rgba(51,65,85,.5);
+      color: var(--muted);
+      font-size: .7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      padding: .65rem .8rem;
+      text-align: left;
+      white-space: nowrap;
+    }
+    .data-table td { padding: .6rem .8rem; border-bottom: 1px solid rgba(51,65,85,.35); vertical-align: top; }
+    .data-table tbody tr:hover td { background: rgba(51,65,85,.2); }
+    .data-table tbody tr:last-child td { border-bottom: none; }
+
+    /* ── STAT CARDS ────────────────────────────── */
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: .875rem;
+      padding: 1.1rem 1.25rem;
+      text-align: center;
+    }
+    .stat-val {
+      font-family: var(--mono);
+      font-size: 1.7rem;
+      font-weight: 700;
+      line-height: 1.15;
+      margin-bottom: .3rem;
+    }
+    .stat-lbl { font-size: .75rem; color: var(--muted); font-weight: 500; }
+
+    /* ── CHART ─────────────────────────────────── */
+    #chart-container { width: 100%; min-height: 200px; }
+
+    /* ── SYNC ──────────────────────────────────── */
+    .sync-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    @media (max-width: 500px) { .sync-grid { grid-template-columns: 1fr; } }
+
+    /* ── DANGER ZONE ───────────────────────────── */
+    .danger-zone {
+      border: 1px solid rgba(239,68,68,.25);
+      border-radius: .875rem;
+      padding: 1.25rem 1.375rem;
+      margin-top: 1rem;
+      background: rgba(239,68,68,.04);
+    }
+    .danger-title { font-weight: 700; color: var(--red); margin-bottom: .6rem; font-size: .9rem; display: flex; align-items: center; gap: .4rem; }
+
+    /* ── CUMPL COLORS (inline in prod table) ────── */
+    .cg { color: var(--green);  font-family: var(--mono); font-weight: 600; font-size: .85rem; }
+    .cy { color: var(--yellow); font-family: var(--mono); font-weight: 600; font-size: .85rem; }
+    .cr { color: var(--red);    font-family: var(--mono); font-weight: 600; font-size: .85rem; }
+    .cm { color: var(--muted);  font-family: var(--mono); font-size: .85rem; }
+
+    /* ── TOAST ─────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(120px);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: .75rem;
+      padding: .7rem 1.4rem;
+      font-size: .875rem;
+      font-weight: 600;
+      box-shadow: 0 12px 40px rgba(0,0,0,.45);
+      z-index: 9999;
+      transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+    #toast.tok  { border-color: var(--green);  color: var(--green);  }
+    #toast.terr { border-color: var(--red);    color: var(--red);    }
+    #toast.tinf { border-color: var(--blue);   color: var(--blue);   }
+
+    /* ── EXPORT GRID ────────────────────────────── */
+    .export-grid { display: flex; flex-wrap: wrap; gap: .75rem; }
+
+    /* ── SETTINGS ──────────────────────────────── */
+    .settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px,1fr)); gap: 1rem; }
+
+    /* ── MISC ──────────────────────────────────── */
+    .mb1 { margin-bottom: 1rem; }
+    .flex-wrap { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-start; }
+    hr.sep { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+
+    /* ── SCROLLBAR ─────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+  </style>
 </head>
 <body>
-<header>
-  <h1>⚡ Control de Obra <span class="ver">v19</span></h1>
-  <div class="date-badge" id="hDate"></div>
-</header>
-<div class="tabs">
-  <button class="tab-btn active" onclick="goTab('entrada',this)">📋 Entrada</button>
-  <button class="tab-btn" onclick="goTab('registro',this)">📁 Registro</button>
-  <button class="tab-btn" onclick="goTab('resumen',this)">📊 Resumen</button>
-  <button class="tab-btn" onclick="goTab('datos',this)">💾 Datos</button>
-  <button class="tab-btn" onclick="goTab('ajustes',this)">⚙️ Ajustes</button>
-</div>
-<div id="tab-entrada" class="tab-content active">
-  <div class="card">
-    <div class="card-title">📅 Información del Día</div>
-    <div class="form-grid">
-      <div class="form-group"><label>Fecha</label><input type="date" id="inp-fecha"></div>
-      <div class="form-group"><label>Personas</label><input type="number" id="inp-personas" min="1" value="1" oninput="recalc()"></div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-title">🚗 Desplazamiento</div>
-    <div class="form-grid">
-      <div class="form-group"><label>Viaje ida (min)</label><input type="number" id="inp-ida" min="0" value="30" oninput="recalc()"></div>
-      <div class="form-group"><label>Viaje vuelta (min)</label><input type="number" id="inp-vuelta" min="0" value="30" oninput="recalc()"></div>
-      <p class="travel-note">ℹ️ 30 min ida + 30 min vuelta van a tu cargo. El tiempo que cubre la empresa <strong>reduce el objetivo</strong> proporcionalmente. Jornada base: 8h.</p>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-title">📏 Producción del Día</div>
-    <p style="font-size:11px;color:var(--text3);margin:-8px 0 12px">Una línea por tipo de trabajo. Cable es opcional.</p>
-    <div class="prod-header">
-      <span>Tipo</span><span>Cable</span><span>Metros</span><span>Obj.</span><span>Cumpl.</span><span></span>
-    </div>
-    <div id="prod-rows"></div>
-    <button class="add-btn" onclick="addRow()">＋ Añadir línea</button>
-    <div class="bar-wrap" id="bar-wrap">
-      <div class="bar-label"><span>Cumplimiento global</span><span id="bar-pct">0%</span></div>
-      <div class="bar-bg"><div class="bar-fill" id="bar-fill" style="width:0"></div></div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-title">📝 Notas del Día</div>
-    <textarea id="inp-notas" placeholder="Incidencias, motivo de 0m, materiales..."></textarea>
-  </div>
-  <button class="save-btn" onclick="guardar()">💾 GUARDAR DÍA</button>
-</div>
-<div id="tab-registro" class="tab-content">
-  <div class="card">
-    <div class="card-title">📁 Historial de Días</div>
-    <div id="reg-content"><div class="empty"><div class="big">📭</div>Sin registros aún.</div></div>
-  </div>
-</div>
-<div id="tab-resumen" class="tab-content">
-  <div class="card">
-    <div class="card-title">📊 Filtro Mensual</div>
-    <div class="form-grid">
-      <div class="form-group"><label>Mes</label>
-        <select id="fil-mes" onchange="renderResumen()">
-          <option value="0">Enero</option><option value="1">Febrero</option><option value="2">Marzo</option>
-          <option value="3">Abril</option><option value="4">Mayo</option><option value="5">Junio</option>
-          <option value="6">Julio</option><option value="7">Agosto</option><option value="8">Septiembre</option>
-          <option value="9">Octubre</option><option value="10">Noviembre</option><option value="11">Diciembre</option>
-        </select>
+
+<!-- ══ NAVIGATION ═══════════════════════════════════════════════════════ -->
+<nav>
+  <div class="nav-logo"><span>🔆</span> FibraControl</div>
+  <button class="nav-btn active" onclick="goTab('entrada',this)">📋 Entrada</button>
+  <button class="nav-btn" onclick="goTab('registro',this)">📁 Registro</button>
+  <button class="nav-btn" onclick="goTab('resumen',this)">📊 Resumen</button>
+  <button class="nav-btn" onclick="goTab('datos',this)">💾 Datos</button>
+  <button class="nav-btn" onclick="goTab('ajustes',this)">⚙️ Ajustes</button>
+</nav>
+
+<main>
+
+  <!-- ══ TAB: ENTRADA ══════════════════════════════════════════════════ -->
+  <div class="tab-content active" id="tab-entrada">
+    <div class="section-title">📋 Entrada Diaria</div>
+
+    <div class="card">
+      <div class="card-title">Datos del Día</div>
+      <div class="g2 mb1">
+        <div>
+          <label>Fecha</label>
+          <input type="date" id="inp-fecha">
+        </div>
+        <div>
+          <label>Número de personas</label>
+          <input type="number" id="inp-personas" value="1" min="1" oninput="recalc()">
+        </div>
       </div>
-      <div class="form-group"><label>Año</label><input type="number" id="fil-anio" min="2024" oninput="renderResumen()"></div>
+      <div class="g2">
+        <div>
+          <label>Viaje ida (min)</label>
+          <input type="number" id="inp-ida" value="30" min="0" oninput="recalc()">
+        </div>
+        <div>
+          <label>Viaje vuelta (min)</label>
+          <input type="number" id="inp-vuelta" value="30" min="0" oninput="recalc()">
+        </div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      ℹ️ <strong>Desplazamiento:</strong> Los primeros 30 min ida + 30 min vuelta (60 min) corren a cargo del trabajador. El tiempo que exceda los 60 min reduce el objetivo proporcionalmente. Jornada base: 8 h (480 min).<br>
+      <strong>Fórmula:</strong> factor = (480 − max(0, ida+vuelta − 60)) / 480
+    </div>
+
+    <div class="card">
+      <div class="card-title">Producción del Día</div>
+      <div class="prod-wrap">
+        <table class="prod-table">
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Cable</th>
+              <th style="min-width:90px;">Metros</th>
+              <th>Objetivo</th>
+              <th>Cumplimiento</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="prod-body"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:.9rem;">
+        <button class="btn btn-ghost btn-sm" onclick="addRow()">＋ Añadir línea</button>
+      </div>
+      <div id="prog-wrap" class="prog-wrap" style="display:none;">
+        <div class="prog-head">
+          <span>Cumplimiento global</span>
+          <strong id="prog-pct">0%</strong>
+        </div>
+        <div class="prog-track">
+          <div class="prog-bar" id="prog-bar" style="width:0%"></div>
+        </div>
+        <div class="prog-detail" id="prog-detail"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Notas</div>
+      <textarea id="inp-notas" placeholder="Observaciones del día, incidencias, motivo de 0 metros…"></textarea>
+    </div>
+
+    <button class="btn btn-yellow btn-full" onclick="guardarDia()">
+      💾 GUARDAR DÍA
+    </button>
+  </div>
+  <!-- END tab-entrada -->
+
+  <!-- ══ TAB: REGISTRO ══════════════════════════════════════════════════ -->
+  <div class="tab-content" id="tab-registro">
+    <div class="section-title">📁 Registro de Días</div>
+    <div class="card" style="padding:0; overflow:hidden;">
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Pers.</th>
+              <th>Producción</th>
+              <th>Total m</th>
+              <th>Objetivo</th>
+              <th>Cumpl.</th>
+              <th>Media/p</th>
+              <th>Notas</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="reg-body"></tbody>
+        </table>
+      </div>
     </div>
   </div>
-  <div id="res-content"></div>
+  <!-- END tab-registro -->
+
+  <!-- ══ TAB: RESUMEN ═══════════════════════════════════════════════════ -->
+  <div class="tab-content" id="tab-resumen">
+    <div class="section-title">📊 Resumen Mensual</div>
+
+    <div class="card">
+      <div class="card-title">Periodo</div>
+      <div class="g2" style="max-width:380px;">
+        <div>
+          <label>Mes</label>
+          <select id="res-mes" onchange="renderResumen()">
+            <option value="0">Enero</option>
+            <option value="1">Febrero</option>
+            <option value="2">Marzo</option>
+            <option value="3">Abril</option>
+            <option value="4">Mayo</option>
+            <option value="5">Junio</option>
+            <option value="6">Julio</option>
+            <option value="7">Agosto</option>
+            <option value="8">Septiembre</option>
+            <option value="9">Octubre</option>
+            <option value="10">Noviembre</option>
+            <option value="11">Diciembre</option>
+          </select>
+        </div>
+        <div>
+          <label>Año</label>
+          <input type="number" id="res-anio" value="2025" min="2020" max="2100" oninput="renderResumen()">
+        </div>
+      </div>
+    </div>
+
+    <div class="gauto mb1">
+      <div class="stat-card">
+        <div class="stat-val" id="res-dias">—</div>
+        <div class="stat-lbl">Días trabajados</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="res-metros">—</div>
+        <div class="stat-lbl">Metros totales</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="res-objetivo">—</div>
+        <div class="stat-lbl">Media m/día trabajado</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="res-cumpl">—</div>
+        <div class="stat-lbl">Cumplimiento %</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="res-media">—</div>
+        <div class="stat-lbl">Media m/persona/día</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Producción Diaria</div>
+      <div id="chart-container" style="width:100%;min-height:200px;"></div>
+      <div style="display:flex;gap:1.5rem;margin-top:.75rem;font-size:.75rem;color:var(--muted);">
+        <span style="display:flex;align-items:center;gap:.4rem;"><span style="width:12px;height:12px;border-radius:2px;background:#334155;display:inline-block;"></span> Objetivo</span>
+        <span style="display:flex;align-items:center;gap:.4rem;"><span style="width:12px;height:12px;border-radius:2px;background:var(--green);display:inline-block;"></span> ≥ 100%</span>
+        <span style="display:flex;align-items:center;gap:.4rem;"><span style="width:12px;height:12px;border-radius:2px;background:var(--yellow);display:inline-block;"></span> ≥ 80%</span>
+        <span style="display:flex;align-items:center;gap:.4rem;"><span style="width:12px;height:12px;border-radius:2px;background:var(--red);display:inline-block;"></span> &lt; 80%</span>
+      </div>
+    </div>
+  </div>
+  <!-- END tab-resumen -->
+
+  <!-- ══ TAB: DATOS ══════════════════════════════════════════════════════ -->
+  <div class="tab-content" id="tab-datos">
+    <div class="section-title">💾 Gestión de Datos</div>
+
+    <div class="card">
+      <div class="card-title">Exportar / Importar</div>
+      <div class="export-grid">
+        <button class="btn btn-green" onclick="exportJSON()">⬇ Exportar JSON</button>
+        <button class="btn btn-blue" onclick="document.getElementById('inp-import').click()">⬆ Importar JSON</button>
+        <button class="btn btn-ghost" onclick="exportCSV()">📄 Exportar CSV</button>
+        <button class="btn btn-ghost" onclick="exportPDF()">🖨 PDF Mensual</button>
+      </div>
+      <input type="file" id="inp-import" accept=".json" style="display:none" onchange="importJSON(event)">
+    </div>
+
+    <div class="card">
+      <div class="card-title">Sincronización GitHub Gist</div>
+      <div class="sync-grid">
+        <div>
+          <label>Token GitHub (PAT)</label>
+          <input type="password" id="gh-token" placeholder="ghp_…" oninput="saveGHcreds()">
+        </div>
+        <div>
+          <label>Gist ID (vacío = crear nuevo)</label>
+          <input type="text" id="gh-gist" placeholder="ID del Gist" oninput="saveGHcreds()">
+        </div>
+      </div>
+      <div class="export-grid">
+        <button class="btn btn-blue" onclick="ghUpload()">☁ Subir a Gist</button>
+        <button class="btn btn-ghost" onclick="ghDownload()">⬇ Descargar de Gist</button>
+      </div>
+    </div>
+
+    <div class="danger-zone">
+      <div class="danger-title">⚠ Zona Peligrosa</div>
+      <p style="font-size:.83rem;color:var(--muted);margin-bottom:1rem;">Esta acción borrará todos los registros de producción de forma permanente e irreversible.</p>
+      <button class="btn btn-red" onclick="borrarTodo()">🗑 Borrar todos los datos</button>
+    </div>
+  </div>
+  <!-- END tab-datos -->
+
+  <!-- ══ TAB: AJUSTES ════════════════════════════════════════════════════ -->
+  <div class="tab-content" id="tab-ajustes">
+    <div class="section-title">⚙️ Ajustes</div>
+
+    <div class="card">
+      <div class="card-title">Objetivos por tipo (m / persona / día)</div>
+      <div class="settings-grid">
+        <div>
+          <label>Ra (metros)</label>
+          <input type="number" id="obj-Ra" value="165" min="1" oninput="saveAjustes()">
+        </div>
+        <div>
+          <label>Poste (metros)</label>
+          <input type="number" id="obj-Poste" value="145" min="1" oninput="saveAjustes()">
+        </div>
+        <div>
+          <label>ICX (metros)</label>
+          <input type="number" id="obj-ICX" value="140" min="1" oninput="saveAjustes()">
+        </div>
+        <div>
+          <label>Malla (metros)</label>
+          <input type="number" id="obj-Malla" value="160" min="1" oninput="saveAjustes()">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Valores actuales</div>
+      <div class="gauto" id="obj-display"></div>
+    </div>
+  </div>
+  <!-- END tab-ajustes -->
+
+</main>
+
+<footer style="text-align:center;padding:1.5rem 1rem 2.5rem;pointer-events:none;">
+  <span style="font-size:.72rem;color:#334155;font-family:'DM Mono',monospace;letter-spacing:.08em;">
+    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v1.0
+  </span>
+</footer>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- CONFIRM MODAL -->
+<div id="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9998;align-items:center;justify-content:center;">
+  <div style="background:#1e293b;border:1px solid #334155;border-radius:1rem;padding:1.75rem 2rem;max-width:360px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,.5);">
+    <p id="modal-msg" style="font-size:.95rem;margin-bottom:1.5rem;line-height:1.6;"></p>
+    <div style="display:flex;gap:.75rem;justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="modalResp(false)">Cancelar</button>
+      <button class="btn btn-red" onclick="modalResp(true)">Eliminar</button>
+    </div>
+  </div>
 </div>
-<div id="tab-datos" class="tab-content">
-  <div class="card">
-    <div class="card-title">📦 Backup</div>
-    <div class="btn-grid">
-      <button class="data-btn" onclick="expJSON()"><div class="db-icon">📥</div><div class="db-title">Exportar JSON</div><div class="db-desc">Descarga todos los datos.</div></button>
-      <button class="data-btn" onclick="impJSON()"><div class="db-icon">📤</div><div class="db-title">Importar JSON</div><div class="db-desc">Restaura desde archivo JSON.</div></button>
-      <button class="data-btn" onclick="expPDF()"><div class="db-icon">📄</div><div class="db-title" style="color:var(--accent3)">PDF Mensual</div><div class="db-desc">Resumen del mes para enviar.</div></button>
-      <button class="data-btn" onclick="expCSV()"><div class="db-icon">📊</div><div class="db-title" style="color:var(--accent2)">Exportar CSV</div><div class="db-desc">Abre en Excel o Google Sheets.</div></button>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-title">☁️ GitHub Gist</div>
-    <p style="font-size:12px;color:var(--text3);margin-bottom:12px">Sincroniza datos entre dispositivos.</p>
-    <div class="form-group" style="margin-bottom:10px"><label>Token GitHub</label><input type="password" id="gh-token" placeholder="ghp_xxxxxxxx"></div>
-    <div class="form-group" style="margin-bottom:14px"><label>Gist ID</label><input type="text" id="gh-gist" placeholder="Vacío = crear nuevo"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <button class="save-btn" style="background:var(--accent2);margin-top:0" onclick="subirGist()">☁️ Subir</button>
-      <button class="save-btn" style="background:var(--accent3);color:#000;margin-top:0" onclick="bajarGist()">⬇️ Descargar</button>
-    </div>
-    <p class="sync-info" id="sync-info">—</p>
-  </div>
-  <div class="card danger">
-    <div class="card-title">⚠️ Zona Peligrosa</div>
-    <button class="data-btn danger" onclick="borrarTodo()" style="width:100%"><div class="db-icon">🗑️</div><div class="db-title" style="color:var(--danger)">Borrar todos los datos</div><div class="db-desc">Irreversible. Exporta antes.</div></button>
-  </div>
-</div>
-<div id="tab-ajustes" class="tab-content">
-  <div class="card">
-    <div class="card-title">⚙️ Objetivos (m/persona/día)</div>
-    <p style="font-size:11px;color:var(--text3);margin:-8px 0 14px">Se guardan en este dispositivo.</p>
-    <div class="form-grid">
-      <div class="form-group"><label>🔵 Ra</label><input type="number" id="obj-ra" min="1" oninput="saveAjustes()"></div>
-      <div class="form-group"><label>🟡 Poste</label><input type="number" id="obj-poste" min="1" oninput="saveAjustes()"></div>
-      <div class="form-group"><label>🟠 ICX</label><input type="number" id="obj-icx" min="1" oninput="saveAjustes()"></div>
-      <div class="form-group"><label>🕸️ Malla</label><input type="number" id="obj-malla" min="1" oninput="saveAjustes()"></div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-title">ℹ️ Valores actuales</div>
-    <div class="sum-grid" id="obj-prev"></div>
-  </div>
-</div>
-<div id="toast" class="toast"></div>
+
 <script>
-const SK='obraData';
-const CABLES=['—','12Fo','24Fo','48Fo','96Fo','144Fo','288Fo','512Fo','576Fo'];
-const MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-const DEF_OBJ={ra:165,poste:145,icx:140,malla:160};
-let OBJ={...DEF_OBJ};
-let rowId=0;
-const getData=()=>{try{return JSON.parse(localStorage.getItem(SK)||'[]')}catch(e){return[]}};
-const saveData=d=>localStorage.setItem(SK,JSON.stringify(d));
-function fmtDate(iso){if(!iso)return'—';const[y,m,d]=iso.split('-');return d+' '+MESES[+m-1]+' '+y;}
-function toast(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.style.borderColor=type==='warn'?'var(--danger)':'var(--accent2)';t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
-function goTab(name,btn){
-  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
+// ════════════════════════════════════════════════════════════
+// CONSTANTS & STORAGE
+// ════════════════════════════════════════════════════════════
+const STORE   = 'obraData';
+const OBJ_KEY = 'objAjustes';
+
+function loadData() {
+  try { return JSON.parse(localStorage.getItem(STORE)) || []; }
+  catch { return []; }
+}
+function saveData(arr) { localStorage.setItem(STORE, JSON.stringify(arr)); }
+
+function loadObj() {
+  try {
+    const s = JSON.parse(localStorage.getItem(OBJ_KEY));
+    if (s && typeof s === 'object') return { Ra:165, Poste:145, ICX:140, Malla:160, ...s };
+  } catch {}
+  return { Ra:165, Poste:145, ICX:140, Malla:160 };
+}
+
+// ════════════════════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════════════════════
+let _toastT = null;
+function toast(msg, type='ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show t' + type;
+  if (_toastT) clearTimeout(_toastT);
+  _toastT = setTimeout(() => { el.className = ''; }, 2800);
+}
+
+// Modal de confirmación (reemplaza confirm() para compatibilidad móvil)
+let _modalCb = null;
+function modalConfirm(msg, cb) {
+  document.getElementById('modal-msg').textContent = msg;
+  const ov = document.getElementById('modal-overlay');
+  ov.style.display = 'flex';
+  _modalCb = cb;
+}
+function modalResp(ok) {
+  document.getElementById('modal-overlay').style.display = 'none';
+  if (_modalCb) { _modalCb(ok); _modalCb = null; }
+}
+
+// ════════════════════════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════════════════════════
+function goTab(name, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
   btn.classList.add('active');
-  if(name==='registro')renderReg();
-  if(name==='resumen')renderResumen();
-  if(name==='ajustes')loadAjustes();
+  if (name === 'resumen')  renderResumen();
+  if (name === 'registro') renderRegistro();
 }
-function loadAjustes(){
-  try{const s=JSON.parse(localStorage.getItem('objAjustes')||'{}');OBJ={...DEF_OBJ,...s};}catch(e){OBJ={...DEF_OBJ};}
-  ['ra','poste','icx','malla'].forEach(k=>{const el=document.getElementById('obj-'+k);if(el)el.value=OBJ[k];});
-  renderObjPrev();
-}
-function saveAjustes(){
-  const s={};
-  ['ra','poste','icx','malla'].forEach(k=>{const v=parseInt(document.getElementById('obj-'+k)?.value);if(v>0)s[k]=v;});
-  localStorage.setItem('objAjustes',JSON.stringify(s));
-  OBJ={...DEF_OBJ,...s};
-  renderObjPrev();recalc();
-  toast('✅ Objetivos guardados');
-}
-function renderObjPrev(){
-  const w=document.getElementById('obj-prev');if(!w)return;
-  const lb={ra:'Ra',poste:'Poste',icx:'ICX',malla:'Malla'};
-  w.innerHTML=Object.entries(OBJ).map(([k,v])=>'<div class="sum-card"><div class="sum-val" style="font-size:24px">'+v+'</div><div class="sum-label">'+lb[k]+'</div><div style="font-size:10px;color:var(--text3)">m/pers/día</div></div>').join('');
-}
-function addRow(tipo,cable,metros){
-  tipo=tipo||'ra';cable=cable||'—';metros=metros||'';
-  const id=rowId++;
-  const w=document.getElementById('prod-rows');
-  const div=document.createElement('div');
-  div.className='prod-row';div.id='pr-'+id;
-  const tO=['ra','poste','icx','malla'].map(t=>'<option value="'+t+'"'+(t===tipo?' selected':'')+'>'+t.charAt(0).toUpperCase()+t.slice(1)+'</option>').join('');
-  const cO=CABLES.map(c=>'<option value="'+c+'"'+(c===cable?' selected':'')+'>'+c+'</option>').join('');
-  div.innerHTML='<select class="pr-t" onchange="recalc()">'+tO+'</select>'+'<select class="pr-c">'+cO+'</select>'+'<input type="number" class="pr-m" min="0" placeholder="0" oninput="recalc()" value="'+metros+'">'+'<span class="pr-obj">—</span>'+'<span class="pr-cumpl">—</span>'+'<button class="rm-btn" onclick="rmRow('+id+')">✕</button>';
-  w.appendChild(div);recalc();
-}
-function rmRow(id){const el=document.getElementById('pr-'+id);if(el){el.remove();recalc();}}
-function recalc(){
-  const pers=parseInt(document.getElementById('inp-personas').value)||1;
-  const ida=parseFloat(document.getElementById('inp-ida').value)||0;
-  const vta=parseFloat(document.getElementById('inp-vuelta').value)||0;
-  const factor=Math.max(0,(480-Math.max(0,(ida+vta)-60)))/480;
-  let tM=0,tO=0;
-  document.querySelectorAll('.prod-row').forEach(r=>{
-    const tipo=r.querySelector('.pr-t').value;
-    const m=parseFloat(r.querySelector('.pr-m').value)||0;
-    const obj=Math.round(OBJ[tipo]*factor*pers);
-    const pct=obj>0?m/obj*100:0;
-    const col=pct>=100?'var(--accent2)':pct>=80?'var(--accent)':(m>0?'var(--danger)':'var(--text3)');
-    r.querySelector('.pr-obj').textContent=obj+' m';
-    r.querySelector('.pr-cumpl').textContent=obj>0?pct.toFixed(0)+'%':'—';
-    r.querySelector('.pr-cumpl').style.color=col;
-    tM+=m;tO+=obj;
-  });
-  const bw=document.getElementById('bar-wrap');
-  if(tO>0){const p=Math.min(150,tM/tO*100);document.getElementById('bar-pct').textContent=(tM/tO*100).toFixed(0)+'%';document.getElementById('bar-fill').style.width=p+'%';document.getElementById('bar-fill').style.background=p>=100?'var(--accent2)':p>=80?'var(--accent)':'var(--danger)';bw.style.display='block';}
-  else bw.style.display='none';
-}
-function guardar(){
-  const fecha=document.getElementById('inp-fecha').value;
-  if(!fecha){toast('⚠️ Introduce la fecha','warn');return;}
-  const pers=parseInt(document.getElementById('inp-personas').value)||1;
-  const ida=parseFloat(document.getElementById('inp-ida').value)||0;
-  const vta=parseFloat(document.getElementById('inp-vuelta').value)||0;
-  const notas=document.getElementById('inp-notas').value;
-  const factor=Math.max(0,(480-Math.max(0,(ida+vta)-60)))/480;
-  let tM=0,tO=0;const det=[];
-  document.querySelectorAll('.prod-row').forEach(r=>{
-    const tipo=r.querySelector('.pr-t').value;
-    const cable=r.querySelector('.pr-c').value;
-    const m=parseFloat(r.querySelector('.pr-m').value)||0;
-    const obj=Math.round(OBJ[tipo]*factor*pers);
-    det.push({tipo,cable:cable==='—'?'':cable,metros:m,objLinea:obj,cumpl:obj>0?(m/obj*100).toFixed(1):'0'});
-    tM+=m;tO+=obj;
-  });
-  if(!det.length){det.push({tipo:'ra',cable:'',metros:0,objLinea:Math.round(OBJ.ra*factor*pers),cumpl:'0'});tO=det[0].objLinea;}
-  const entry={fecha,personas:pers,vIda:ida,vVuelta:vta,metros:tM,notas,objEq:tO,cumplimiento:tO>0?(tM/tO*100).toFixed(1):'0',mediaPersona:(tM/pers).toFixed(0),prodDetalle:det};
-  const data=getData();
-  const i=data.findIndex(d=>d.fecha===fecha);
-  if(i>=0)data[i]=entry;else data.push(entry);
-  data.sort((a,b)=>a.fecha.localeCompare(b.fecha));
-  saveData(data);
-  toast('✅ Día guardado');
-  renderResumen();
-}
-function renderReg(){
-  const data=getData();
-  const w=document.getElementById('reg-content');
-  if(!data.length){w.innerHTML='<div class="empty"><div class="big">📭</div>Sin registros aún.</div>';return;}
-  const rows=data.slice().reverse().map(d=>{
-    const p=parseFloat(d.cumplimiento)||0;
-    const b=p>=100?'ok':p>=80?'warn':'bad';
-    const prod=d.prodDetalle&&d.prodDetalle.length?d.prodDetalle.map(r=>(r.cable?r.cable+' ':'')+r.tipo.toUpperCase()+' '+r.metros+'m').join(' + '):(d.metros||0)+'m';
-    return'<tr><td>'+fmtDate(d.fecha)+'</td><td>'+d.personas+'</td><td style="font-size:11px;color:var(--text2)">'+prod+'</td><td>'+(d.metros||0)+' m</td><td style="color:var(--accent3)">'+(d.objEq||0)+' m</td><td><span class="badge '+b+'">'+p+'%</span></td><td>'+(d.mediaPersona||0)+' m</td><td style="max-width:90px;overflow:hidden;text-overflow:ellipsis;color:var(--text3);font-size:11px">'+(d.notas||'—')+'</td><td style="white-space:nowrap"><button class="ic-btn" onclick="editarDia(\''+d.fecha+'\')">✏️</button><button class="ic-btn" onclick="eliminarDia(\''+d.fecha+'\')">🗑</button></td></tr>';
-  }).join('');
-  w.innerHTML='<div class="tbl-wrap"><table><thead><tr><th>Fecha</th><th>Pers.</th><th>Producción</th><th>Total</th><th>Obj.</th><th>Cumpl.</th><th>Media/p</th><th>Notas</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
-}
-function eliminarDia(fecha){
-  if(!confirm('¿Eliminar el registro del '+fmtDate(fecha)+'?'))return;
-  saveData(getData().filter(d=>d.fecha!==fecha));
-  renderReg();renderResumen();
-  toast('🗑 Eliminado');
-}
-function editarDia(fecha){
-  const d=getData().find(x=>x.fecha===fecha);if(!d)return;
-  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('tab-entrada').classList.add('active');
-  document.querySelector('.tab-btn').classList.add('active');
-  document.getElementById('inp-fecha').value=d.fecha;
-  document.getElementById('inp-personas').value=d.personas||1;
-  document.getElementById('inp-ida').value=d.vIda||30;
-  document.getElementById('inp-vuelta').value=d.vVuelta||30;
-  document.getElementById('inp-notas').value=d.notas||'';
-  const w=document.getElementById('prod-rows');w.innerHTML='';rowId=0;
-  if(d.prodDetalle&&d.prodDetalle.length)d.prodDetalle.forEach(r=>addRow(r.tipo,r.cable||'—',r.metros));
-  else addRow(d.tipo||'ra','—',d.metros||0);
+
+// ════════════════════════════════════════════════════════════
+// ROW MANAGEMENT
+// ════════════════════════════════════════════════════════════
+let _rowId = 0;
+
+const TIPOS   = ['Ra','Poste','ICX','Malla'];
+const CABLES  = ['—','12Fo','24Fo','48Fo','96Fo','144Fo','288Fo','512Fo','576Fo'];
+
+function addRow(tipo='Ra', cable='—', metros='') {
+  _rowId++;
+  const id = _rowId;
+  const tbody = document.getElementById('prod-body');
+  const tr = document.createElement('tr');
+  tr.id = 'pr-' + id;
+
+  const tipoOpts  = TIPOS.map(t  => `<option${t===tipo?' selected':''}>${t}</option>`).join('');
+  const cableOpts = CABLES.map(c => `<option${c===cable?' selected':''}>${c}</option>`).join('');
+
+  tr.innerHTML = `
+    <td>
+      <select id="tipo-${id}" onchange="recalc()" style="min-width:78px;">${tipoOpts}</select>
+    </td>
+    <td>
+      <select id="cable-${id}" onchange="recalc()" style="min-width:88px;">${cableOpts}</select>
+    </td>
+    <td>
+      <input type="number" id="metros-${id}" value="${metros}" min="0" placeholder="0"
+             style="min-width:80px;" oninput="recalc()">
+    </td>
+    <td id="obj-${id}" class="cm">—</td>
+    <td id="cumpl-${id}" class="cm">—</td>
+    <td>
+      <button class="row-del" onclick="removeRow(${id})" title="Eliminar">✕</button>
+    </td>`;
+  tbody.appendChild(tr);
   recalc();
-  toast('✏️ Cargado para editar');
 }
-function renderResumen(){
-  const mes=parseInt(document.getElementById('fil-mes').value);
-  const anio=parseInt(document.getElementById('fil-anio').value);
-  const w=document.getElementById('res-content');
-  const data=getData().filter(d=>{const dt=new Date(d.fecha+'T00:00:00');return dt.getMonth()===mes&&dt.getFullYear()===anio;});
-  if(!data.length){w.innerHTML='<div class="empty"><div class="big">📭</div>Sin datos para este mes.</div>';return;}
-  const tM=data.reduce((s,d)=>s+(d.metros||0),0);
-  const tO=data.reduce((s,d)=>s+(d.objEq||0),0);
-  const cumpl=tO>0?(tM/tO*100).toFixed(1):'0';
-  const media=data.length>0?(tM/data.length).toFixed(0):0;
-  const col=parseFloat(cumpl)>=100?'var(--accent2)':parseFloat(cumpl)>=80?'var(--accent)':'var(--danger)';
-  const mx=Math.max(...data.map(d=>Math.max(d.metros||0,d.objEq||0)),1);
-  const bw=Math.max(10,Math.min(30,Math.floor(460/Math.max(data.length,1))));
-  const ch=90,sw=data.length*(bw*2+8)+50;
-  const bars=data.map((d,i)=>{
-    const x=30+i*(bw*2+8);
-    const hR=Math.round(((d.metros||0)/mx)*ch);
-    const hO=Math.round(((d.objEq||0)/mx)*ch);
-    const c=parseFloat(d.cumplimiento)||0;
-    const fc=c>=100?'var(--accent2)':c>=80?'var(--accent)':'var(--danger)';
-    const lb=fmtDate(d.fecha).split(' ')[0];
-    return'<rect x="'+x+'" y="'+(ch-hO+8)+'" width="'+bw+'" height="'+(hO||2)+'" fill="var(--border)" rx="2"/><rect x="'+(x+bw+2)+'" y="'+(ch-hR+8)+'" width="'+bw+'" height="'+(hR||0)+'" fill="'+fc+'" rx="2"/><text x="'+(x+bw)+'" y="'+(ch+20)+'" font-size="8" fill="var(--text3)" text-anchor="middle" font-family="DM Mono,monospace">'+lb+'</text>';
+
+function removeRow(id) {
+  const el = document.getElementById('pr-' + id);
+  if (el) el.remove();
+  recalc();
+}
+
+function getRows() {
+  const rows = [];
+  document.querySelectorAll('#prod-body tr[id^="pr-"]').forEach(tr => {
+    const id = tr.id.replace('pr-','');
+    rows.push({
+      id,
+      tipo:   document.getElementById('tipo-'   + id)?.value || 'Ra',
+      cable:  document.getElementById('cable-'  + id)?.value || '—',
+      metros: parseFloat(document.getElementById('metros-' + id)?.value) || 0
+    });
+  });
+  return rows;
+}
+
+// ════════════════════════════════════════════════════════════
+// RECALC
+// El objetivo es POR TIPO ÚNICO, no por fila.
+// Varias filas del mismo tipo comparten un único objetivo.
+// ════════════════════════════════════════════════════════════
+function recalc() {
+  const personas = Math.max(1, parseInt(document.getElementById('inp-personas').value) || 1);
+  const ida      = parseFloat(document.getElementById('inp-ida').value)    || 0;
+  const vuelta   = parseFloat(document.getElementById('inp-vuelta').value) || 0;
+  const factor   = (480 - Math.max(0, (ida + vuelta) - 60)) / 480;
+  const obj      = loadObj();
+  const rows     = getRows();
+
+  // 1. Suma de metros por tipo (todas las filas del mismo tipo se acumulan)
+  const metrosPorTipo = {};
+  rows.forEach(r => { metrosPorTipo[r.tipo] = (metrosPorTipo[r.tipo] || 0) + r.metros; });
+
+  // 2. Objetivo por tipo único presente (se cuenta UNA sola vez por tipo)
+  const tiposPresentes = [...new Set(rows.map(r => r.tipo))];
+  const objPorTipo = {};
+  tiposPresentes.forEach(t => { objPorTipo[t] = Math.round(obj[t] * personas * factor); });
+
+  // 3. Totales globales
+  const totalMetros = rows.reduce((s, r) => s + r.metros, 0);
+  const totalObj    = tiposPresentes.reduce((s, t) => s + objPorTipo[t], 0);
+
+  // 4. Actualizar columnas de cada fila
+  // Objetivo: solo se muestra en la PRIMERA fila de cada tipo y si tiene metros > 0.
+  // Filas vacías o filas duplicadas del mismo tipo → "—" para que no parezca que se exige doble.
+  const tipoYaVisto = {};
+  rows.forEach(r => {
+    const tipoObj = objPorTipo[r.tipo];
+    const tipoMet = metrosPorTipo[r.tipo];
+    const esPrimero = !tipoYaVisto[r.tipo];
+    tipoYaVisto[r.tipo] = true;
+
+    const oc = document.getElementById('obj-'  + r.id);
+    const cc = document.getElementById('cumpl-'+ r.id);
+
+    // Objetivo: mostrar solo en la primera fila del tipo y solo si hay metros en ese tipo
+    if (oc) oc.textContent = (esPrimero && tipoMet > 0) ? tipoObj + ' m' : '—';
+
+    // Cumplimiento: mostrar el % acumulado del tipo, solo en la primera fila con datos
+    if (cc) {
+      if (!esPrimero || r.metros === 0) {
+        cc.textContent = '—'; cc.className = 'cm';
+      } else {
+        const pct = tipoObj > 0 ? Math.round(tipoMet / tipoObj * 100) : 100;
+        cc.textContent = pct + '%';
+        cc.className   = pct >= 100 ? 'cg' : pct >= 80 ? 'cy' : 'cr';
+      }
+    }
+  });
+
+  // 5. Barra de progreso global
+  // Solo se cuentan tipos con metros > 0 (filas vacías no penalizan).
+  // Global % = suma de % por tipo activo.
+  // Color basado en la media de esos tipos: verde ≥ 100%, amarillo ≥ 80%, rojo < 80%.
+  const tiposActivos = tiposPresentes.filter(t => metrosPorTipo[t] > 0);
+  const pw = document.getElementById('prog-wrap');
+  if (tiposActivos.length > 0) {
+    pw.style.display = 'block';
+    const pctPorTipo = {};
+    tiposActivos.forEach(t => {
+      pctPorTipo[t] = objPorTipo[t] > 0 ? Math.round(metrosPorTipo[t] / objPorTipo[t] * 100) : 0;
+    });
+    const gp  = tiposActivos.reduce((s, t) => s + pctPorTipo[t], 0);
+    const avg = gp / tiposActivos.length;
+    const barColor = gp  >= 100 ? 'var(--green)' : gp  >= 80 ? 'var(--yellow)' : 'var(--red)';
+    const bar = document.getElementById('prog-bar');
+    const pt  = document.getElementById('prog-pct');
+    const pd  = document.getElementById('prog-detail');
+    // Barra: llena al 100% cuando gp >= 100 (objetivo conseguido)
+    // Color: verde si gp >= 100, amarillo si >= 80, rojo si < 80
+    bar.style.width      = Math.min(100, gp) + '%';
+    bar.style.background = barColor;
+    pt.textContent       = gp + '%';
+    pt.style.color       = barColor;
+    const det = tiposActivos.map(t =>
+      t + ': ' + metrosPorTipo[t] + '/' + objPorTipo[t] + 'm (' + pctPorTipo[t] + '%)'
+    ).join(' · ');
+    pd.textContent = det;
+  } else {
+    pw.style.display = 'none';
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// GUARDAR DÍA
+// ════════════════════════════════════════════════════════════
+function guardarDia() {
+  const fecha    = document.getElementById('inp-fecha').value;
+  if (!fecha)    { toast('Indica la fecha', 'err'); return; }
+
+  const personas = Math.max(1, parseInt(document.getElementById('inp-personas').value) || 1);
+  const vIda     = parseFloat(document.getElementById('inp-ida').value)    || 0;
+  const vVuelta  = parseFloat(document.getElementById('inp-vuelta').value) || 0;
+  const notas    = document.getElementById('inp-notas').value.trim();
+  const factor   = (480 - Math.max(0, (vIda + vVuelta) - 60)) / 480;
+  const obj      = loadObj();
+  const rows     = getRows();
+
+  // Objetivo por tipo único — misma lógica que recalc()
+  const mpt = {};
+  rows.forEach(r => { mpt[r.tipo] = (mpt[r.tipo] || 0) + r.metros; });
+  const tipos2 = [...new Set(rows.map(r => r.tipo))];
+  const opt = {};
+  tipos2.forEach(t => { opt[t] = Math.round(obj[t] * personas * factor); });
+  const totalMetros = rows.reduce((s, r) => s + r.metros, 0);
+  const totalObj    = tipos2.reduce((s, t) => s + opt[t], 0);
+  const prodDetalle = rows.map(r => ({
+    tipo: r.tipo, cable: r.cable, metros: r.metros,
+    objLinea: opt[r.tipo],
+    cumpl: opt[r.tipo] > 0 ? Math.round(mpt[r.tipo] / opt[r.tipo] * 100) : (mpt[r.tipo] > 0 ? 100 : 0)
+  }));
+  // Cumplimiento = suma de % de tipos activos (con metros > 0)
+  const tiposActivos2 = tipos2.filter(t => mpt[t] > 0);
+  const cumplimiento = tiposActivos2.length > 0
+    ? tiposActivos2.reduce((s, t) => s + (opt[t] > 0 ? Math.round(mpt[t] / opt[t] * 100) : 0), 0)
+    : 0;
+  const mediaPersona = Math.round(totalMetros / personas);
+  const reg = { fecha, personas, vIda, vVuelta, metros: totalMetros, notas, objEq: totalObj, cumplimiento, mediaPersona, prodDetalle };
+
+  const data = loadData();
+  const idx  = data.findIndex(d => d.fecha === fecha);
+  if (idx >= 0) { data[idx] = reg; saveData(data); toast('Día actualizado ✓', 'ok'); }
+  else          { data.push(reg);  saveData(data); toast('Día guardado ✓',     'ok'); }
+}
+
+// ════════════════════════════════════════════════════════════
+// EDITAR DÍA (Registro → Entrada)
+// ════════════════════════════════════════════════════════════
+function editarDia(fecha) {
+  const reg = loadData().find(d => d.fecha === fecha);
+  if (!reg) return;
+
+  document.getElementById('inp-fecha').value    = reg.fecha;
+  document.getElementById('inp-personas').value = reg.personas;
+  document.getElementById('inp-ida').value      = reg.vIda;
+  document.getElementById('inp-vuelta').value   = reg.vVuelta;
+  document.getElementById('inp-notas').value    = reg.notas || '';
+
+  document.getElementById('prod-body').innerHTML = '';
+  _rowId = 0;
+  (reg.prodDetalle || []).forEach(d => addRow(d.tipo, d.cable, d.metros));
+  recalc();
+
+  const btn = document.querySelector('.nav-btn');
+  goTab('entrada', btn);
+  toast('Cargado: ' + fmtFecha(fecha), 'inf');
+}
+
+// ════════════════════════════════════════════════════════════
+// ELIMINAR DÍA
+// ════════════════════════════════════════════════════════════
+function eliminarDia(fecha) {
+  modalConfirm('¿Eliminar el registro del ' + fmtFecha(fecha) + '? Esta acción no se puede deshacer.', ok => {
+    if (!ok) return;
+    saveData(loadData().filter(d => d.fecha !== fecha));
+    renderRegistro();
+    toast('Registro eliminado', 'ok');
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════════════════
+function fmtFecha(f) {
+  if (!f) return '—';
+  const [y,m,d] = f.split('-');
+  return d + '/' + m + '/' + y;
+}
+
+function mkBadge(pct) {
+  const cls = pct >= 100 ? 'bg' : pct >= 80 ? 'by' : 'br';
+  return `<span class="badge ${cls}">${pct}%</span>`;
+}
+
+function dateStr() { return new Date().toISOString().slice(0,10).replace(/-/g,''); }
+
+function dlBlob(blob, name) {
+  const u = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = u; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(u), 1000);
+}
+
+// ════════════════════════════════════════════════════════════
+// RENDER REGISTRO
+// ════════════════════════════════════════════════════════════
+function renderRegistro() {
+  const data  = loadData().sort((a,b) => b.fecha.localeCompare(a.fecha));
+  const tbody = document.getElementById('reg-body');
+  if (!data.length) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2.5rem;color:var(--muted);">No hay registros todavía</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = data.map(r => {
+    const det = (r.prodDetalle||[]).map(d =>
+      `<span style="white-space:nowrap;font-size:.78rem;">${d.tipo}${d.cable!=='—'?' '+d.cable:''}: <b style="font-family:var(--mono)">${d.metros}m</b></span>`
+    ).join('<br>');
+    return `<tr>
+      <td style="font-family:var(--mono);white-space:nowrap;">${fmtFecha(r.fecha)}</td>
+      <td style="font-family:var(--mono);text-align:center;">${r.personas}</td>
+      <td>${det||'—'}</td>
+      <td style="font-family:var(--mono);font-weight:700;">${r.metros}</td>
+      <td style="font-family:var(--mono);">${r.objEq}</td>
+      <td>${mkBadge(r.cumplimiento)}</td>
+      <td style="font-family:var(--mono);">${r.mediaPersona}</td>
+      <td style="font-size:.78rem;max-width:130px;word-break:break-word;">${r.notas||''}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-ghost btn-sm" onclick="editarDia('${r.fecha}')" title="Editar">✏️</button>
+        <button class="btn btn-sm" style="background:rgba(239,68,68,.15);color:var(--red);margin-left:.25rem;" onclick="eliminarDia('${r.fecha}')" title="Eliminar">🗑</button>
+      </td>
+    </tr>`;
   }).join('');
-  w.innerHTML='<div class="card"><div class="card-title">'+MESES[mes]+' '+anio+'</div><div class="sum-grid"><div class="sum-card"><div class="sum-val">'+data.length+'</div><div class="sum-label">Días</div></div><div class="sum-card"><div class="sum-val">'+tM.toLocaleString('es-ES')+'</div><div class="sum-label">Metros</div></div><div class="sum-card"><div class="sum-val">'+tO.toLocaleString('es-ES')+'</div><div class="sum-label">Objetivo</div></div><div class="sum-card"><div class="sum-val" style="color:'+col+'">'+cumpl+'%</div><div class="sum-label">Cumpl.</div></div><div class="sum-card"><div class="sum-val">'+media+'</div><div class="sum-label">Media m/día</div></div></div></div><div class="card"><div class="card-title">📈 Metros por Día</div><p style="font-size:10px;color:var(--text3);margin:-10px 0 8px">⬜ Objetivo | Color = Realizado</p><div style="overflow-x:auto"><svg width="'+sw+'" height="'+(ch+28)+'" style="display:block">'+bars+'</svg></div></div>';
 }
-function expJSON(){const d=getData();if(!d.length){toast('Sin datos','warn');return;}const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'}));a.download='obra-'+new Date().toISOString().split('T')[0]+'.json';a.click();}
-function impJSON(){const inp=document.createElement('input');inp.type='file';inp.accept='.json';inp.onchange=e=>{const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(!Array.isArray(d))throw 0;saveData(d);toast('✅ '+d.length+' registros importados');renderResumen();}catch{toast('❌ Archivo inválido','warn');}};r.readAsText(e.target.files[0]);};inp.click();}
-function expCSV(){const d=getData();if(!d.length){toast('Sin datos','warn');return;}const hdr='Fecha,Personas,Producción,Metros,Objetivo,Cumpl%,Media/p,Ida,Vuelta,Notas';const rows=d.map(x=>{const p=x.prodDetalle&&x.prodDetalle.length?x.prodDetalle.map(r=>r.tipo.toUpperCase()+' '+r.metros+'m').join('+'):(x.metros||0)+'m';return[fmtDate(x.fecha),x.personas,p,x.metros||0,x.objEq||0,x.cumplimiento||0,x.mediaPersona||0,x.vIda||0,x.vVuelta||0,'"'+(x.notas||'').replace(/"/g,'""')+'"'].join(',');}).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+hdr+'\n'+rows],{type:'text/csv;charset=utf-8'}));a.download='obra-'+new Date().toISOString().split('T')[0]+'.csv';a.click();}
-function expPDF(){
-  const mes=parseInt(document.getElementById('fil-mes').value);
-  const anio=parseInt(document.getElementById('fil-anio').value);
-  const d=getData().filter(x=>{const dt=new Date(x.fecha+'T00:00:00');return dt.getMonth()===mes&&dt.getFullYear()===anio;});
-  if(!d.length){toast('Sin datos para este mes','warn');return;}
-  const tM=d.reduce((s,x)=>s+(x.metros||0),0),tO=d.reduce((s,x)=>s+(x.objEq||0),0);
-  const c=tO>0?(tM/tO*100).toFixed(1):0,med=d.length>0?(tM/d.length).toFixed(0):0;
-  const filas=d.map(x=>{const p=x.prodDetalle&&x.prodDetalle.length?x.prodDetalle.map(r=>r.tipo.toUpperCase()+' '+r.metros+'m').join(' + '):(x.metros||0)+'m';return'<tr><td>'+fmtDate(x.fecha)+'</td><td>'+x.personas+'</td><td>'+p+'</td><td>'+(x.metros||0)+' m</td><td>'+(x.objEq||0)+' m</td><td>'+(x.cumplimiento||0)+'%</td><td>'+(x.notas||'')+'</td></tr>';}).join('');
-  const w=window.open('','_blank');
-  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Resumen '+MESES[mes]+' '+anio+'</title><style>body{font-family:Arial,sans-serif;font-size:12px;padding:20px}.r{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}.c{border:1px solid #ddd;border-radius:6px;padding:10px 14px}.v{font-size:20px;font-weight:700}.l{font-size:10px;color:#888;text-transform:uppercase}table{width:100%;border-collapse:collapse}th{background:#f5f5f5;font-size:10px;text-transform:uppercase;padding:7px;text-align:left;border-bottom:2px solid #ddd}td{padding:6px 7px;border-bottom:1px solid #eee}@media print{button{display:none}}</style></head><body><h2>Resumen '+MESES[mes]+' '+anio+'</h2><div class="r"><div class="c"><div class="v">'+d.length+'</div><div class="l">Días</div></div><div class="c"><div class="v">'+tM.toLocaleString('es-ES')+' m</div><div class="l">Metros</div></div><div class="c"><div class="v">'+tO.toLocaleString('es-ES')+' m</div><div class="l">Objetivo</div></div><div class="c"><div class="v">'+c+'%</div><div class="l">Cumplimiento</div></div><div class="c"><div class="v">'+med+' m</div><div class="l">Media/día</div></div></div><table><thead><tr><th>Fecha</th><th>Pers.</th><th>Producción</th><th>Total</th><th>Obj.</th><th>Cumpl.</th><th>Notas</th></tr></thead><tbody>'+filas+'</tbody></table><br><button onclick="window.print()" style="padding:9px 22px;background:#f59e0b;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-weight:700">🖨️ Imprimir / PDF</button></body></html>');
-  w.document.close();
+
+// ════════════════════════════════════════════════════════════
+// RENDER RESUMEN
+// ════════════════════════════════════════════════════════════
+function renderResumen() {
+  const mes   = parseInt(document.getElementById('res-mes').value);
+  const anio  = parseInt(document.getElementById('res-anio').value);
+  const data  = loadData();
+  const mesP  = String(mes+1).padStart(2,'0');
+  const pfx   = anio + '-' + mesP;
+  const diasD = new Date(anio, mes+1, 0).getDate();
+  const recs  = data.filter(d => d.fecha.startsWith(pfx));
+
+  let tM=0;
+  recs.forEach(r => { tM += r.metros; });
+
+  // Cumplimiento = promedio de los cumplimientos diarios guardados
+  const cumpl = recs.length > 0
+    ? Math.round(recs.reduce((s,r) => s + r.cumplimiento, 0) / recs.length)
+    : 0;
+  // Media por persona = promedio de las medias diarias guardadas (solo días trabajados)
+  const media = recs.length > 0
+    ? Math.round(recs.reduce((s,r) => s + r.mediaPersona, 0) / recs.length)
+    : 0;
+
+  document.getElementById('res-dias').textContent    = recs.length;
+  document.getElementById('res-metros').textContent  = tM.toLocaleString('es');
+  document.getElementById('res-objetivo').textContent= recs.length > 0 ? (Math.round(recs.reduce((s,r)=>s+r.metros,0)/recs.length)).toLocaleString('es') + ' m' : '—';
+  document.getElementById('res-media').textContent   = media.toLocaleString('es') + ' m';
+
+  const cel = document.getElementById('res-cumpl');
+  cel.textContent = cumpl + '%';
+  cel.style.color = cumpl>=100?'var(--green)':cumpl>=80?'var(--yellow)':'var(--red)';
+
+  renderChart(recs, diasD, mes, anio);
 }
-async function subirGist(){
-  const tok=document.getElementById('gh-token').value.trim();
-  const gid=document.getElementById('gh-gist').value.trim();
-  if(!tok){toast('⚠️ Introduce el token','warn');return;}
-  localStorage.setItem('ghtoken',tok);
-  const body={description:'Control de Obra',public:false,files:{'obra-data.json':{content:JSON.stringify(getData(),null,2)}}};
-  try{const url=gid?'https://api.github.com/gists/'+gid:'https://api.github.com/gists';const r=await fetch(url,{method:gid?'PATCH':'POST',headers:{Authorization:'token '+tok,'Content-Type':'application/json'},body:JSON.stringify(body)});const j=await r.json();if(!r.ok)throw new Error(j.message);document.getElementById('gh-gist').value=j.id;localStorage.setItem('ghGistId',j.id);document.getElementById('sync-info').textContent='✅ Subido '+new Date().toLocaleString('es-ES');toast('✅ Subido');}catch(e){toast('❌ '+e.message,'warn');}
+
+// ════════════════════════════════════════════════════════════
+// SVG CHART
+// ════════════════════════════════════════════════════════════
+function renderChart(recs, diasD, mes, anio) {
+  const cont = document.getElementById('chart-container');
+  if (!cont) return;
+  const W  = Math.max(cont.clientWidth || 300, 300);
+  const H  = 200;
+  const ML = 44, MR=8, MT=8, MB=28;
+  const cW = W-ML-MR, cH = H-MT-MB;
+
+  const mesP = String(mes+1).padStart(2,'0');
+  const days = [];
+  for (let d=1; d<=diasD; d++) {
+    const fs  = anio+'-'+mesP+'-'+String(d).padStart(2,'0');
+    const reg = recs.find(r => r.fecha===fs);
+    days.push({ d, metros: reg?reg.metros:0, obj: reg?reg.objEq:0, cumpl: reg?reg.cumplimiento:0, has: !!reg });
+  }
+
+  const maxV = Math.max(...days.map(d => Math.max(d.metros, d.obj)), 100);
+  const slot = cW / diasD;
+  const bw   = Math.max(2.5, slot*0.32);
+
+  let s = '';
+
+  // Gridlines + Y labels
+  for (let i=0; i<=4; i++) {
+    const y   = MT + cH - cH*i/4;
+    const val = Math.round(maxV*i/4);
+    s += `<line x1="${ML}" y1="${y.toFixed(1)}" x2="${(ML+cW).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#2d3f55" stroke-width="1"/>`;
+    s += `<text x="${(ML-4).toFixed(1)}" y="${(y+3.5).toFixed(1)}" text-anchor="end" font-size="9" fill="#64748b" font-family="DM Mono,monospace">${val}</text>`;
+  }
+
+  // Bars
+  days.forEach((d,i) => {
+    const cx = ML + i*slot + slot/2;
+    if (d.has) {
+      // Objective bar (background, gray)
+      if (d.obj > 0) {
+        const oh = cH * d.obj / maxV;
+        s += `<rect x="${(cx-bw).toFixed(1)}" y="${(MT+cH-oh).toFixed(1)}" width="${(bw*2).toFixed(1)}" height="${oh.toFixed(1)}" fill="#2d3f55" rx="2"/>`;
+      }
+      // Realizado bar
+      const mh    = d.metros > 0 ? cH * d.metros / maxV : 2;
+      const color = d.cumpl>=100?'#10b981':d.cumpl>=80?'#f59e0b':'#ef4444'; // usa cumplimiento guardado
+      s += `<rect x="${(cx-bw*0.55).toFixed(1)}" y="${(MT+cH-mh).toFixed(1)}" width="${(bw*1.1).toFixed(1)}" height="${mh.toFixed(1)}" fill="${color}" rx="2"/>`;
+    }
+    // Day label (every other day if month >15 days)
+    if (diasD<=15 || d.d%2===1 || d.d===diasD) {
+      s += `<text x="${cx.toFixed(1)}" y="${(MT+cH+16).toFixed(1)}" text-anchor="middle" font-size="9" fill="#64748b" font-family="DM Mono,monospace">${d.d}</text>`;
+    }
+  });
+
+  // Axes
+  s += `<line x1="${ML}" y1="${MT}" x2="${ML}" y2="${MT+cH}" stroke="#475569" stroke-width="1.5"/>`;
+  s += `<line x1="${ML}" y1="${MT+cH}" x2="${ML+cW}" y2="${MT+cH}" stroke="#475569" stroke-width="1.5"/>`;
+
+  cont.innerHTML = `<svg width="${W}" height="${H}" style="display:block;overflow:visible;">${s}</svg>`;
 }
-async function bajarGist(){
-  const tok=document.getElementById('gh-token').value.trim();
-  const gid=document.getElementById('gh-gist').value.trim();
-  if(!tok||!gid){toast('⚠️ Token y Gist ID requeridos','warn');return;}
-  localStorage.setItem('ghtoken',tok);
-  try{const r=await fetch('https://api.github.com/gists/'+gid,{headers:{Authorization:'token '+tok}});const j=await r.json();if(!r.ok)throw new Error(j.message);const content=j.files['obra-data.json']?.content;if(!content)throw new Error('Archivo no encontrado');const d=JSON.parse(content);saveData(d);document.getElementById('sync-info').textContent='✅ Descargado '+new Date().toLocaleString('es-ES');toast('✅ '+d.length+' registros');renderResumen();}catch(e){toast('❌ '+e.message,'warn');}
+
+// ════════════════════════════════════════════════════════════
+// AJUSTES
+// ════════════════════════════════════════════════════════════
+function saveAjustes() {
+  const obj = {
+    Ra:    parseInt(document.getElementById('obj-Ra').value)    || 165,
+    Poste: parseInt(document.getElementById('obj-Poste').value) || 145,
+    ICX:   parseInt(document.getElementById('obj-ICX').value)   || 140,
+    Malla: parseInt(document.getElementById('obj-Malla').value) || 160
+  };
+  localStorage.setItem(OBJ_KEY, JSON.stringify(obj));
+  renderObjDisplay(obj);
+  recalc();
 }
-function borrarTodo(){
-  const d=getData();if(!d.length){toast('Sin datos','warn');return;}
-  if(!confirm('⚠️ ¿Borrar TODOS los '+d.length+' registros?\n\nExporta backup antes.'))return;
-  localStorage.removeItem(SK);toast('🗑 Datos eliminados');renderResumen();
+
+function renderObjDisplay(obj) {
+  const colors = { Ra:'var(--yellow)', Poste:'var(--blue)', ICX:'var(--green)', Malla:'var(--red)' };
+  document.getElementById('obj-display').innerHTML = Object.entries(obj).map(([k,v]) => `
+    <div class="stat-card">
+      <div class="stat-val" style="color:${colors[k]||'var(--yellow)'};">${v}</div>
+      <div class="stat-lbl">${k} m/persona/día</div>
+    </div>`).join('');
 }
-document.addEventListener('DOMContentLoaded',()=>{
-  const hoy=new Date().toISOString().split('T')[0];
-  document.getElementById('inp-fecha').value=hoy;
-  document.getElementById('hDate').textContent=fmtDate(hoy);
-  document.getElementById('fil-mes').value=new Date().getMonth();
-  document.getElementById('fil-anio').value=new Date().getFullYear();
-  const st=localStorage.getItem('ghtoken');if(st)document.getElementById('gh-token').value=st;
-  const sg=localStorage.getItem('ghGistId');if(sg)document.getElementById('gh-gist').value=sg;
+
+function loadAjustes() {
+  const obj = loadObj();
+  document.getElementById('obj-Ra').value    = obj.Ra;
+  document.getElementById('obj-Poste').value = obj.Poste;
+  document.getElementById('obj-ICX').value   = obj.ICX;
+  document.getElementById('obj-Malla').value = obj.Malla;
+  renderObjDisplay(obj);
+}
+
+// ════════════════════════════════════════════════════════════
+// EXPORT / IMPORT
+// ════════════════════════════════════════════════════════════
+function exportJSON() {
+  const blob = new Blob([JSON.stringify({version:1, data:loadData()},null,2)], {type:'application/json'});
+  dlBlob(blob, 'fibra_backup_'+dateStr()+'.json');
+  toast('JSON exportado ✓', 'ok');
+}
+
+function importJSON(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const parsed = JSON.parse(ev.target.result);
+      const arr = parsed.data || parsed;
+      if (!Array.isArray(arr)) throw new Error('Formato inválido');
+      if (!confirm('Importar ' + arr.length + ' registros? Se reemplazarán los datos actuales.')) return;
+      saveData(arr);
+      toast(arr.length + ' registros importados ✓', 'ok');
+    } catch(err) { toast('Error: ' + err.message, 'err'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function exportCSV() {
+  const data = loadData().sort((a,b) => a.fecha.localeCompare(b.fecha));
+  const BOM  = '\uFEFF';
+  const hdr  = ['Fecha','Personas','Ida(min)','Vuelta(min)','Total m','Objetivo','Cumplimiento%','Media/persona','Notas','Detalle producción'].join(';');
+  const rows = data.map(r => [
+    fmtFecha(r.fecha),
+    r.personas, r.vIda, r.vVuelta, r.metros, r.objEq, r.cumplimiento, r.mediaPersona,
+    '"'+(r.notas||'').replace(/"/g,'""')+'"',
+    '"'+(r.prodDetalle||[]).map(d=>`${d.tipo} ${d.cable}: ${d.metros}m`).join('; ')+'"'
+  ].join(';'));
+  dlBlob(new Blob([BOM+[hdr,...rows].join('\r\n')],{type:'text/csv;charset=utf-8;'}), 'fibra_'+dateStr()+'.csv');
+  toast('CSV exportado ✓', 'ok');
+}
+
+function exportPDF() {
+  const mes  = parseInt(document.getElementById('res-mes')?.value  ?? new Date().getMonth());
+  const anio = parseInt(document.getElementById('res-anio')?.value ?? new Date().getFullYear());
+  const data = loadData();
+  const mesP = String(mes+1).padStart(2,'0');
+  const recs = data.filter(d => d.fecha.startsWith(anio+'-'+mesP)).sort((a,b) => a.fecha.localeCompare(b.fecha));
+  const meses= ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const diasD= new Date(anio,mes+1,0).getDate();
+  let tM=0, tO=0;
+  recs.forEach(r => { tM+=r.metros; tO+=r.objEq; });
+  const cumpl = tO>0?Math.round(tM/tO*100):0;
+  const media = Math.round(tM/diasD);
+
+  const trows = recs.map(r=>`
+    <tr>
+      <td>${fmtFecha(r.fecha)}</td>
+      <td style="text-align:center">${r.personas}</td>
+      <td>${(r.prodDetalle||[]).map(d=>`${d.tipo}${d.cable!=='—'?' '+d.cable:''}: ${d.metros}m`).join(', ')}</td>
+      <td style="text-align:right">${r.metros}</td>
+      <td style="text-align:right">${r.objEq}</td>
+      <td style="text-align:right">${r.cumplimiento}%</td>
+      <td style="text-align:right">${r.mediaPersona}</td>
+      <td>${r.notas||''}</td>
+    </tr>`).join('');
+
+  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+  <title>Informe ${meses[mes]} ${anio}</title>
+  <style>
+    body{font-family:Arial,sans-serif;margin:1.5cm;color:#000;font-size:10pt;}
+    h1{font-size:16pt;margin-bottom:8px;} h2{font-size:11pt;margin:16px 0 6px;}
+    .stats{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px;}
+    .stat{border:1px solid #ccc;padding:8px 14px;border-radius:4px;min-width:100px;text-align:center;}
+    .sv{font-size:18pt;font-weight:bold;} .sl{font-size:8pt;color:#666;}
+    table{width:100%;border-collapse:collapse;font-size:9pt;}
+    th{background:#eee;padding:5px 7px;border:1px solid #ccc;text-align:left;}
+    td{padding:4px 7px;border:1px solid #ddd;}
+    tr:nth-child(even) td{background:#f7f7f7;}
+    @media print{button{display:none;}.no-print{display:none;}}
+  </style></head><body>
+  <h1>Informe de Producción &mdash; ${meses[mes]} ${anio}</h1>
+  <div class="stats">
+    <div class="stat"><div class="sv">${recs.length}</div><div class="sl">Días trabajados</div></div>
+    <div class="stat"><div class="sv">${tM.toLocaleString('es')}</div><div class="sl">Metros totales</div></div>
+    <div class="stat"><div class="sv">${tO.toLocaleString('es')}</div><div class="sl">Objetivo</div></div>
+    <div class="stat"><div class="sv">${cumpl}%</div><div class="sl">Cumplimiento</div></div>
+    <div class="stat"><div class="sv">${media.toLocaleString('es')}</div><div class="sl">Media m/día</div></div>
+  </div>
+  <h2>Detalle por día</h2>
+  <table><thead><tr>
+    <th>Fecha</th><th>Pers.</th><th>Producción</th><th>Total m</th><th>Objetivo</th><th>Cumpl.</th><th>Media/p</th><th>Notas</th>
+  </tr></thead><tbody>${trows||'<tr><td colspan="8" style="text-align:center;padding:12px;color:#999;">Sin registros este mes</td></tr>'}</tbody></table>
+  <br><p class="no-print" style="font-size:9pt;color:#666;">Generado: ${new Date().toLocaleString('es')}</p>
+  <button onclick="window.print()" style="margin-top:12px;padding:8px 18px;background:#333;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:10pt;">🖨 Imprimir / Guardar PDF</button>
+  </body></html>`;
+
+  const w = window.open('','_blank');
+  if (w) { w.document.write(html); w.document.close(); }
+  else   { toast('Activa las ventanas emergentes', 'err'); }
+}
+
+// ════════════════════════════════════════════════════════════
+// GITHUB GIST SYNC
+// ════════════════════════════════════════════════════════════
+function saveGHcreds() {
+  const tok  = document.getElementById('gh-token').value;
+  const gist = document.getElementById('gh-gist').value;
+  if (tok)  localStorage.setItem('ghToken', tok);
+  if (gist) localStorage.setItem('ghGist',  gist);
+}
+
+async function ghUpload() {
+  const token  = document.getElementById('gh-token').value.trim();
+  if (!token)  { toast('Introduce el token de GitHub', 'err'); return; }
+  const gistId = document.getElementById('gh-gist').value.trim();
+  const payload = JSON.stringify({ version:1, data:loadData() });
+  const body = JSON.stringify({
+    description: 'FibraControl Backup',
+    public: false,
+    files: { 'fibra_data.json': { content: payload } }
+  });
+
+  try {
+    toast('Subiendo…', 'inf');
+    const url    = gistId ? `https://api.github.com/gists/${gistId}` : 'https://api.github.com/gists';
+    const method = gistId ? 'PATCH' : 'POST';
+    const res    = await fetch(url, { method, headers: { 'Authorization':'token '+token, 'Content-Type':'application/json' }, body });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json   = await res.json();
+    document.getElementById('gh-gist').value = json.id;
+    localStorage.setItem('ghGist', json.id);
+    toast(gistId ? 'Gist actualizado ✓' : 'Gist creado: '+json.id, 'ok');
+  } catch(err) { toast('Error: ' + err.message, 'err'); }
+}
+
+async function ghDownload() {
+  const token  = document.getElementById('gh-token').value.trim();
+  const gistId = document.getElementById('gh-gist').value.trim();
+  if (!gistId) { toast('Introduce el Gist ID', 'err'); return; }
+
+  try {
+    toast('Descargando…', 'inf');
+    const hdrs = token ? { 'Authorization':'token '+token } : {};
+    const res  = await fetch('https://api.github.com/gists/'+gistId, { headers: hdrs });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    const raw  = json.files?.['fibra_data.json']?.content;
+    if (!raw)  throw new Error('Archivo no encontrado en el Gist');
+    const parsed = JSON.parse(raw);
+    const arr    = parsed.data || parsed;
+    if (!Array.isArray(arr)) throw new Error('Formato inválido');
+    if (!confirm('Descargar '+arr.length+' registros? Se reemplazarán los datos locales.')) return;
+    saveData(arr);
+    toast(arr.length + ' registros descargados ✓', 'ok');
+  } catch(err) { toast('Error: ' + err.message, 'err'); }
+}
+
+// ════════════════════════════════════════════════════════════
+// BORRAR TODO
+// ════════════════════════════════════════════════════════════
+function borrarTodo() {
+  modalConfirm('¿Borrar TODOS los datos de producción? Esta acción es permanente e irreversible.', ok => {
+    if (!ok) return;
+    modalConfirm('Segunda confirmación: todos los registros se eliminarán. ¿Continuar?', ok2 => {
+      if (!ok2) return;
+      saveData([]);
+      renderRegistro();
+      toast('Todos los datos eliminados', 'err');
+    });
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  // Date
+  document.getElementById('inp-fecha').value = new Date().toISOString().slice(0,10);
+
+  // Month / year for resumen
+  const now = new Date();
+  document.getElementById('res-mes').value  = now.getMonth();
+  document.getElementById('res-anio').value = now.getFullYear();
+
+  // GH creds
+  const savedTok  = localStorage.getItem('ghToken');
+  const savedGist = localStorage.getItem('ghGist');
+  if (savedTok)  document.getElementById('gh-token').value = savedTok;
+  if (savedGist) document.getElementById('gh-gist').value  = savedGist;
+
+  // Ajustes
   loadAjustes();
-  addRow('ra');
-  addRow('malla');
+
+  // Default rows
+  addRow('Ra');
+  addRow('Malla');
+
+  // Initial renders
   recalc();
   renderResumen();
+});
+
+// Redraw chart on resize
+let _resizeT;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeT);
+  _resizeT = setTimeout(renderResumen, 120);
 });
 </script>
 </body>
