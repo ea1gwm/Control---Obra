@@ -3,9 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0f172a">
   <meta name="description" content="Control de producción diaria — Equipo de fibra óptica">
-  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="FibraControl">
   <title>FibraControl — Producción Diaria</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -368,6 +371,7 @@
 <!-- ══ NAVIGATION ═══════════════════════════════════════════════════════ -->
 <nav>
   <div class="nav-logo"><span>🔆</span> FibraControl</div>
+  <button id="btn-install" class="btn btn-yellow btn-sm" style="display:none;margin:auto 0 auto auto;font-size:.75rem;" onclick="installPWA()">📲 Instalar</button>
   <button class="nav-btn active" onclick="goTab('entrada',this)">📋 Entrada</button>
   <button class="nav-btn" onclick="goTab('registro',this)">📁 Registro</button>
   <button class="nav-btn" onclick="goTab('resumen',this)">📊 Resumen</button>
@@ -1313,6 +1317,55 @@ window.addEventListener('resize', () => {
   clearTimeout(_resizeT);
   _resizeT = setTimeout(renderResumen, 120);
 });
+
+// ════════════════════════════════════════════════════════════
+// PWA — SERVICE WORKER + INSTALL PROMPT
+// ════════════════════════════════════════════════════════════
+let _deferredInstall = null;
+
+// Service worker inline para caché offline
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    const CACHE = 'fibracontrol-v1';
+    const ASSETS = [self.location.href.replace(/\/[^\/]*$/, '') || '/'];
+    self.addEventListener('install', e => {
+      e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+    });
+    self.addEventListener('activate', e => {
+      e.waitUntil(clients.claim());
+    });
+    self.addEventListener('fetch', e => {
+      e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
+    });
+  `;
+  const swBlob = new Blob([swCode], { type: 'application/javascript' });
+  const swUrl  = URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swUrl).catch(() => {});
+}
+
+// Capturar evento de instalación PWA
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _deferredInstall = e;
+  const btn = document.getElementById('btn-install');
+  if (btn) btn.style.display = 'inline-flex';
+});
+
+window.addEventListener('appinstalled', () => {
+  _deferredInstall = null;
+  const btn = document.getElementById('btn-install');
+  if (btn) btn.style.display = 'none';
+  toast('¡App instalada! 🎉', 'ok');
+});
+
+function installPWA() {
+  if (!_deferredInstall) {
+    toast('Usa el menú del navegador → "Instalar aplicación"', 'inf');
+    return;
+  }
+  _deferredInstall.prompt();
+  _deferredInstall.userChoice.then(() => { _deferredInstall = null; });
+}
 </script>
 </body>
 </html>
