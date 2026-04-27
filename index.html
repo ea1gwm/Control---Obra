@@ -648,16 +648,92 @@
 
 <script>
 // ════════════════════════════════════════════════════════════
-// CONSTANTS & STORAGE
+// CONSTANTS & STORAGE — IndexedDB (persistente) + localStorage fallback
 // ════════════════════════════════════════════════════════════
 const STORE   = 'obraData';
 const OBJ_KEY = 'objAjustes';
+const DB_NAME = 'FibraControlDB';
+const DB_VER  = 1;
+
+let _db = null;
+
+function openDB() {
+  return new Promise((res, rej) => {
+    if (_db) { res(_db); return; }
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('records')) {
+        db.createObjectStore('records', { keyPath: 'fecha' });
+      }
+      if (!db.objectStoreNames.contains('kv')) {
+        db.createObjectStore('kv');
+      }
+    };
+    req.onsuccess = e => { _db = e.target.result; res(_db); };
+    req.onerror   = () => rej(req.error);
+  });
+}
+
+// ── Async IndexedDB helpers ──────────────────────────────────
+async function idbGetAll() {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx  = db.transaction('records', 'readonly');
+    const req = tx.objectStore('records').getAll();
+    req.onsuccess = () => res(req.result || []);
+    req.onerror   = () => rej(req.error);
+  });
+}
+
+async function idbSaveAll(arr) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx    = db.transaction('records', 'readwrite');
+    const store = tx.objectStore('records');
+    store.clear();
+    arr.forEach(r => store.put(r));
+    tx.oncomplete = () => res();
+    tx.onerror    = () => rej(tx.error);
+  });
+}
+
+async function idbKVGet(key) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const req = db.transaction('kv','readonly').objectStore('kv').get(key);
+    req.onsuccess = () => res(req.result);
+    req.onerror   = () => rej(req.error);
+  });
+}
+
+async function idbKVSet(key, val) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const req = db.transaction('kv','readwrite').objectStore('kv').put(val, key);
+    req.onsuccess = () => res();
+    req.onerror   = () => rej(req.error);
+  });
+}
+
+// ── Capa de compatibilidad síncrona (usa cache en memoria) ───
+let _dataCache = null;   // cache en memoria para lecturas síncronas
 
 function loadData() {
-  try { return JSON.parse(localStorage.getItem(STORE)) || []; }
-  catch { return []; }
+  // Devuelve cache en memoria (se carga al init)
+  return _dataCache || [];
 }
-function saveData(arr) { localStorage.setItem(STORE, JSON.stringify(arr)); }
+
+function saveData(arr) {
+  _dataCache = arr;
+  // Persiste en IndexedDB de forma asíncrona
+  idbSaveAll(arr).catch(() => {
+    // Fallback a localStorage si falla IndexedDB
+    try { localStorage.setItem(STORE, JSON.stringify(arr)); } catch {}
+  });
+  // También guarda en localStorage como doble respaldo
+  try { localStorage.setItem(STORE, JSON.stringify(arr)); } catch {}
+}
 
 function loadObj() {
   try {
@@ -665,6 +741,41 @@ function loadObj() {
     if (s && typeof s === 'object') return { Ra:165, Poste:145, ICX:140, Malla:160, ...s };
   } catch {}
   return { Ra:165, Poste:145, ICX:140, Malla:160 };
+}
+
+// ── Carga inicial de datos desde IndexedDB ──────────────────
+async function initStorage() {
+  // Pedir almacenamiento persistente a Chrome
+  if (navigator.storage && navigator.storage.persist) {
+    const granted = await navigator.storage.persist();
+    if (!granted) console.warn('FibraControl: almacenamiento persistente no concedido');
+  }
+
+  try {
+    // Cargar desde IndexedDB
+    const idbData = await idbGetAll();
+
+    // Migrar desde localStorage si IndexedDB está vacío
+    if (idbData.length === 0) {
+      const lsRaw = localStorage.getItem(STORE);
+      if (lsRaw) {
+        const lsData = JSON.parse(lsRaw);
+        if (Array.isArray(lsData) && lsData.length > 0) {
+          await idbSaveAll(lsData);
+          _dataCache = lsData;
+          toast('Datos migrados a almacenamiento persistente ✓', 'ok');
+          return;
+        }
+      }
+    }
+
+    _dataCache = idbData;
+  } catch(e) {
+    // Si IndexedDB falla, usar localStorage
+    try {
+      _dataCache = JSON.parse(localStorage.getItem(STORE)) || [];
+    } catch { _dataCache = []; }
+  }
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1284,7 +1395,10 @@ function borrarTodo() {
 // ════════════════════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Inicializar almacenamiento persistente ANTES de renderizar
+  await initStorage();
+
   // Date
   document.getElementById('inp-fecha').value = new Date().toISOString().slice(0,10);
 
