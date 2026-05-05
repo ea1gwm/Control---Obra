@@ -53,6 +53,8 @@
       -webkit-overflow-scrolling: touch;
     }
     nav::-webkit-scrollbar { display: none; }
+    #sync-indicator { display: none; }
+    nav:has(#sync-indicator[style*="flex"]) { gap: 0; }
 
     .nav-logo {
       display: flex;
@@ -371,6 +373,10 @@
 <!-- ══ NAVIGATION ═══════════════════════════════════════════════════════ -->
 <nav>
   <div class="nav-logo"><span>🔆</span> FibraControl</div>
+  <div id="sync-indicator" style="display:none;margin-left:.75rem;font-size:.72rem;font-family:var(--mono);align-items:center;gap:.35rem;color:var(--muted);">
+    <span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:var(--muted);display:inline-block;transition:background .3s;"></span>
+    <span id="sync-label">sin sync</span>
+  </div>
   <button id="btn-install" class="btn btn-yellow btn-sm" style="display:none;margin:auto 0 auto auto;font-size:.75rem;" onclick="installPWA()">📲 Instalar</button>
   <button class="nav-btn active" onclick="goTab('entrada',this)">📋 Entrada</button>
   <button class="nav-btn" onclick="goTab('registro',this)">📁 Registro</button>
@@ -566,7 +572,11 @@
     </div>
 
     <div class="card">
-      <div class="card-title">Sincronización GitHub Gist</div>
+      <div class="card-title">Sincronización automática — GitHub Gist</div>
+      <div class="info-box" style="margin-bottom:1rem;">
+        ☁ Con el token configurado, <strong>cada día guardado se sube automáticamente</strong> al Gist y se descarga al abrir la app en cualquier dispositivo. Así PC y móvil siempre están sincronizados.<br><br>
+        <strong>Cómo obtener el token:</strong> github.com → Settings → Developer settings → Personal access tokens → Tokens (classic) → New token → marcar <em>gist</em> → Generate.
+      </div>
       <div class="sync-grid">
         <div>
           <label>Token GitHub (PAT)</label>
@@ -574,13 +584,31 @@
         </div>
         <div>
           <label>Gist ID (vacío = crear nuevo)</label>
-          <input type="text" id="gh-gist" placeholder="ID del Gist" oninput="saveGHcreds()">
+          <input type="text" id="gh-gist" placeholder="Se rellena solo al subir" oninput="saveGHcreds()">
         </div>
       </div>
       <div class="export-grid">
-        <button class="btn btn-blue" onclick="ghUpload()">☁ Subir a Gist</button>
-        <button class="btn btn-ghost" onclick="ghDownload()">⬇ Descargar de Gist</button>
+        <button class="btn btn-blue" onclick="ghUpload()">☁ Subir ahora</button>
+        <button class="btn btn-ghost" onclick="ghDownload()">⬇ Descargar ahora</button>
       </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Sincronización Google Drive</div>
+      <div class="info-box" style="margin-bottom:1rem;">
+        ☁ Guarda y recupera tus datos directamente en tu Google Drive. Una vez conectado, <strong>cada día guardado se sube automáticamente</strong> y se descarga al abrir la app en cualquier dispositivo.
+      </div>
+      <div style="margin-bottom:1rem;">
+        <label>Client ID de Google</label>
+        <input type="text" id="drive-client-id" placeholder="xxxxx.apps.googleusercontent.com" oninput="saveDriveCreds()">
+      </div>
+      <div class="export-grid" style="align-items:center;">
+        <button class="btn btn-blue" onclick="driveSignIn()" id="btn-drive-login">🔑 Conectar con Google</button>
+        <button class="btn btn-ghost" onclick="driveUpload()" id="btn-drive-upload" style="display:none;">☁ Subir ahora</button>
+        <button class="btn btn-ghost" onclick="driveDownload()" id="btn-drive-download" style="display:none;">⬇ Descargar ahora</button>
+        <button class="btn btn-ghost btn-sm" onclick="driveSignOut()" id="btn-drive-logout" style="display:none;color:var(--red);">✕ Desconectar</button>
+      </div>
+      <div id="drive-status" style="margin-top:.75rem;font-size:.78rem;color:var(--muted);font-family:var(--mono);"></div>
     </div>
 
     <div class="danger-zone">
@@ -628,7 +656,7 @@
 
 <footer style="text-align:center;padding:1.5rem 1rem 2.5rem;pointer-events:none;">
   <span style="font-size:.72rem;color:#334155;font-family:'DM Mono',monospace;letter-spacing:.08em;">
-    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v1.0
+    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v1.2
   </span>
 </footer>
 
@@ -770,6 +798,14 @@ async function initStorage() {
     }
 
     _dataCache = idbData;
+
+    // Restaurar ajustes desde IndexedDB si localStorage está vacío
+    const idbObj = await idbKVGet(OBJ_KEY).catch(() => null);
+    if (idbObj && typeof idbObj === 'object') {
+      if (!localStorage.getItem(OBJ_KEY)) {
+        localStorage.setItem(OBJ_KEY, JSON.stringify(idbObj));
+      }
+    }
   } catch(e) {
     // Si IndexedDB falla, usar localStorage
     try {
@@ -1000,6 +1036,10 @@ function guardarDia() {
   const idx  = data.findIndex(d => d.fecha === fecha);
   if (idx >= 0) { data[idx] = reg; saveData(data); toast('Día actualizado ✓', 'ok'); }
   else          { data.push(reg);  saveData(data); toast('Día guardado ✓',     'ok'); }
+
+  // Auto-sync a Gist y Drive si están configurados
+  autoSync();
+  driveAutoSync();
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1198,6 +1238,8 @@ function saveAjustes() {
     Malla: parseInt(document.getElementById('obj-Malla').value) || 160
   };
   localStorage.setItem(OBJ_KEY, JSON.stringify(obj));
+  // También en IndexedDB para persistencia total
+  idbKVSet(OBJ_KEY, obj).catch(() => {});
   renderObjDisplay(obj);
   recalc();
 }
@@ -1322,37 +1364,77 @@ function exportPDF() {
 }
 
 // ════════════════════════════════════════════════════════════
-// GITHUB GIST SYNC
+// GITHUB GIST SYNC — Auto-sync tras cada guardado
 // ════════════════════════════════════════════════════════════
+function setSyncStatus(state) {
+  // state: 'idle' | 'syncing' | 'ok' | 'err' | 'none'
+  const ind   = document.getElementById('sync-indicator');
+  const dot   = document.getElementById('sync-dot');
+  const label = document.getElementById('sync-label');
+  if (!ind) return;
+  const cfg = {
+    idle:    { color:'#334155', txt:'sin cambios',  show: true  },
+    syncing: { color:'#f59e0b', txt:'sincronizando…',show: true  },
+    ok:      { color:'#10b981', txt:'sincronizado ✓',show: true  },
+    err:     { color:'#ef4444', txt:'error sync',   show: true  },
+    none:    { color:'#334155', txt:'',              show: false }
+  }[state] || { color:'#334155', txt:'', show: false };
+  ind.style.display  = cfg.show ? 'flex' : 'none';
+  dot.style.background = cfg.color;
+  label.textContent  = cfg.txt;
+}
+
 function saveGHcreds() {
   const tok  = document.getElementById('gh-token').value;
   const gist = document.getElementById('gh-gist').value;
   if (tok)  localStorage.setItem('ghToken', tok);
   if (gist) localStorage.setItem('ghGist',  gist);
+  setSyncStatus(tok ? 'idle' : 'none');
 }
 
-async function ghUpload() {
-  const token  = document.getElementById('gh-token').value.trim();
-  if (!token)  { toast('Introduce el token de GitHub', 'err'); return; }
-  const gistId = document.getElementById('gh-gist').value.trim();
+// Auto-sync: se llama tras cada guardarDia()
+let _syncTimer = null;
+function autoSync() {
+  const token  = localStorage.getItem('ghToken') || document.getElementById('gh-token').value.trim();
+  const gistId = localStorage.getItem('ghGist')  || document.getElementById('gh-gist').value.trim();
+  if (!token) { setSyncStatus('none'); return; }
+  setSyncStatus('syncing');
+  // Debounce por si se llama varias veces seguidas
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(() => ghUploadSilent(token, gistId), 800);
+}
+
+async function ghUploadSilent(token, gistId) {
   const payload = JSON.stringify({ version:1, data:loadData() });
   const body = JSON.stringify({
     description: 'FibraControl Backup',
     public: false,
     files: { 'fibra_data.json': { content: payload } }
   });
-
   try {
-    toast('Subiendo…', 'inf');
-    const url    = gistId ? `https://api.github.com/gists/${gistId}` : 'https://api.github.com/gists';
+    const url    = gistId ? 'https://api.github.com/gists/'+gistId : 'https://api.github.com/gists';
     const method = gistId ? 'PATCH' : 'POST';
     const res    = await fetch(url, { method, headers: { 'Authorization':'token '+token, 'Content-Type':'application/json' }, body });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const json   = await res.json();
     document.getElementById('gh-gist').value = json.id;
     localStorage.setItem('ghGist', json.id);
-    toast(gistId ? 'Gist actualizado ✓' : 'Gist creado: '+json.id, 'ok');
-  } catch(err) { toast('Error: ' + err.message, 'err'); }
+    setSyncStatus('ok');
+    // Volver a idle tras 4 segundos
+    setTimeout(() => setSyncStatus('idle'), 4000);
+  } catch(err) {
+    setSyncStatus('err');
+    console.warn('FibraControl autoSync error:', err.message);
+  }
+}
+
+async function ghUpload() {
+  const token  = document.getElementById('gh-token').value.trim();
+  if (!token)  { toast('Introduce el token de GitHub', 'err'); return; }
+  const gistId = document.getElementById('gh-gist').value.trim();
+  setSyncStatus('syncing');
+  await ghUploadSilent(token, gistId);
+  toast('Sincronizado con Gist ✓', 'ok');
 }
 
 async function ghDownload() {
@@ -1371,10 +1453,54 @@ async function ghDownload() {
     const parsed = JSON.parse(raw);
     const arr    = parsed.data || parsed;
     if (!Array.isArray(arr)) throw new Error('Formato inválido');
-    if (!confirm('Descargar '+arr.length+' registros? Se reemplazarán los datos locales.')) return;
-    saveData(arr);
-    toast(arr.length + ' registros descargados ✓', 'ok');
+    modalConfirm('Descargar ' + arr.length + ' registros desde Gist? Se reemplazarán los datos locales.', async ok => {
+      if (!ok) return;
+      saveData(arr);
+      _dataCache = arr;
+      renderRegistro();
+      renderResumen();
+      toast(arr.length + ' registros descargados ✓', 'ok');
+      setSyncStatus('ok');
+      setTimeout(() => setSyncStatus('idle'), 3000);
+    });
   } catch(err) { toast('Error: ' + err.message, 'err'); }
+}
+
+// Auto-descarga al abrir si hay token + gist configurados
+async function autoDownloadOnStart() {
+  const token  = localStorage.getItem('ghToken');
+  const gistId = localStorage.getItem('ghGist');
+  if (!token || !gistId) { setSyncStatus('none'); return; }
+  setSyncStatus('syncing');
+  try {
+    const res  = await fetch('https://api.github.com/gists/'+gistId, { headers: { 'Authorization':'token '+token } });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    const raw  = json.files?.['fibra_data.json']?.content;
+    if (!raw) throw new Error('vacío');
+    const parsed = JSON.parse(raw);
+    const arr    = parsed.data || parsed;
+    if (!Array.isArray(arr) || arr.length === 0) throw new Error('sin datos');
+
+    // Solo actualizar si el Gist tiene más datos o más recientes
+    const local = loadData();
+    const gistNewer = arr.length > local.length ||
+      (arr.length > 0 && local.length > 0 &&
+       arr[arr.length-1].fecha > local[local.length-1].fecha);
+
+    if (gistNewer) {
+      saveData(arr);
+      _dataCache = arr;
+      renderRegistro();
+      renderResumen();
+      toast('Datos sincronizados desde Gist ✓', 'ok');
+    }
+    setSyncStatus('ok');
+    setTimeout(() => setSyncStatus('idle'), 3000);
+  } catch(err) {
+    setSyncStatus('err');
+    setTimeout(() => setSyncStatus('idle'), 5000);
+  }
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1413,6 +1539,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (savedTok)  document.getElementById('gh-token').value = savedTok;
   if (savedGist) document.getElementById('gh-gist').value  = savedGist;
 
+  // Drive Client ID
+  const savedCid = localStorage.getItem('driveClientId');
+  if (savedCid) document.getElementById('drive-client-id').value = savedCid;
+
   // Ajustes
   loadAjustes();
 
@@ -1423,7 +1553,267 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initial renders
   recalc();
   renderResumen();
+
+  // Auto-descarga desde Gist si está configurado
+  autoDownloadOnStart();
+
+  // Reconectar Drive si había sesión activa
+  driveAutoRestore();
 });
+
+// ════════════════════════════════════════════════════════════
+// GOOGLE DRIVE SYNC
+// ════════════════════════════════════════════════════════════
+const DRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive.file';
+const DRIVE_FILE_NAME = 'fibra_control.json';
+let _gToken     = null;
+let _driveFileId = null;
+let _tokenClient = null;
+let _driveReady  = false;
+
+function saveDriveCreds() {
+  const cid = document.getElementById('drive-client-id').value.trim();
+  if (cid) localStorage.setItem('driveClientId', cid);
+}
+
+function loadGIS() {
+  return new Promise((res, rej) => {
+    if (window.google?.accounts?.oauth2) { res(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client';
+    s.onload  = res;
+    s.onerror = () => rej(new Error('No se pudo cargar Google Identity Services'));
+    document.head.appendChild(s);
+  });
+}
+
+function setDriveUI(connected) {
+  document.getElementById('btn-drive-login').style.display    = connected ? 'none'         : 'inline-flex';
+  document.getElementById('btn-drive-upload').style.display   = connected ? 'inline-flex'  : 'none';
+  document.getElementById('btn-drive-download').style.display = connected ? 'inline-flex'  : 'none';
+  document.getElementById('btn-drive-logout').style.display   = connected ? 'inline-flex'  : 'none';
+  _driveReady = connected;
+}
+
+function setDriveStatus(msg, color) {
+  const el = document.getElementById('drive-status');
+  if (el) { el.textContent = msg; el.style.color = color || 'var(--muted)'; }
+}
+
+async function driveSignIn() {
+  const clientId = document.getElementById('drive-client-id').value.trim()
+                || localStorage.getItem('driveClientId');
+  if (!clientId) { toast('Introduce el Client ID de Google', 'err'); return; }
+  localStorage.setItem('driveClientId', clientId);
+
+  try {
+    await loadGIS();
+  } catch(e) { toast('Error cargando Google: ' + e.message, 'err'); return; }
+
+  _tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: clientId,
+    scope: DRIVE_SCOPE,
+    callback: async (resp) => {
+      if (resp.error) { toast('Error Google: ' + resp.error, 'err'); return; }
+      _gToken = resp.access_token;
+      localStorage.setItem('driveToken', _gToken);
+      // El token dura 1h; guardamos tiempo de expiración
+      localStorage.setItem('driveTokenExp', Date.now() + (resp.expires_in - 60) * 1000);
+      setDriveUI(true);
+      setDriveStatus('Conectado ✓ — buscando archivo en Drive…', 'var(--green)');
+      await driveFindOrCreate();
+      toast('Google Drive conectado ✓', 'ok');
+    }
+  });
+  _tokenClient.requestAccessToken({ prompt: 'consent' });
+}
+
+async function driveEnsureToken() {
+  const exp = parseInt(localStorage.getItem('driveTokenExp') || '0');
+  if (_gToken && Date.now() < exp) return true;
+  // Token expirado — pedir nuevo silenciosamente
+  return new Promise(res => {
+    if (!_tokenClient) { res(false); return; }
+    _tokenClient.callback = (resp) => {
+      if (resp.error) { res(false); return; }
+      _gToken = resp.access_token;
+      localStorage.setItem('driveToken', _gToken);
+      localStorage.setItem('driveTokenExp', Date.now() + (resp.expires_in - 60) * 1000);
+      res(true);
+    };
+    _tokenClient.requestAccessToken({ prompt: '' });
+  });
+}
+
+async function driveFetch(url, opts = {}) {
+  const ok = await driveEnsureToken();
+  if (!ok) throw new Error('No autenticado');
+  opts.headers = { ...(opts.headers || {}), 'Authorization': 'Bearer ' + _gToken };
+  const res = await fetch(url, opts);
+  if (!res.ok) throw new Error('Drive API: HTTP ' + res.status);
+  return res;
+}
+
+async function driveFindOrCreate() {
+  // Buscar archivo existente
+  const q   = encodeURIComponent(`name='${DRIVE_FILE_NAME}' and trashed=false`);
+  const res = await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime)&spaces=drive`);
+  const json = await res.json();
+  if (json.files && json.files.length > 0) {
+    _driveFileId = json.files[0].id;
+    localStorage.setItem('driveFileId', _driveFileId);
+    setDriveStatus('Conectado ✓  |  Archivo: ' + DRIVE_FILE_NAME + '  |  Modificado: ' + new Date(json.files[0].modifiedTime).toLocaleString('es'), 'var(--green)');
+  } else {
+    // Crear archivo vacío
+    await driveCreateFile();
+    setDriveStatus('Conectado ✓  |  Archivo nuevo creado en Drive', 'var(--green)');
+  }
+}
+
+async function driveCreateFile() {
+  const meta    = JSON.stringify({ name: DRIVE_FILE_NAME, mimeType: 'application/json' });
+  const payload = JSON.stringify({ version: 1, data: loadData() });
+  const form    = new FormData();
+  form.append('metadata', new Blob([meta],    { type: 'application/json' }));
+  form.append('file',     new Blob([payload], { type: 'application/json' }));
+  const res  = await driveFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+    method: 'POST', body: form
+  });
+  const json = await res.json();
+  _driveFileId = json.id;
+  localStorage.setItem('driveFileId', _driveFileId);
+}
+
+async function driveUpload() {
+  if (!_driveReady) { toast('Conecta primero con Google Drive', 'err'); return; }
+  setSyncStatus('syncing');
+  setDriveStatus('Subiendo…', 'var(--yellow)');
+  try {
+    const payload = JSON.stringify({ version: 1, data: loadData() });
+    if (!_driveFileId) await driveCreateFile();
+    else {
+      await driveFetch(`https://www.googleapis.com/upload/drive/v3/files/${_driveFileId}?uploadType=media`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload
+      });
+    }
+    const now = new Date().toLocaleString('es');
+    setDriveStatus('Sincronizado ✓  |  Última subida: ' + now, 'var(--green)');
+    setSyncStatus('ok');
+    setTimeout(() => setSyncStatus('idle'), 3000);
+    toast('Subido a Drive ✓', 'ok');
+  } catch(e) {
+    setSyncStatus('err');
+    setDriveStatus('Error: ' + e.message, 'var(--red)');
+    toast('Error Drive: ' + e.message, 'err');
+  }
+}
+
+async function driveDownload() {
+  if (!_driveReady) { toast('Conecta primero con Google Drive', 'err'); return; }
+  setSyncStatus('syncing');
+  setDriveStatus('Descargando…', 'var(--yellow)');
+  try {
+    if (!_driveFileId) { await driveFindOrCreate(); }
+    const res  = await driveFetch(`https://www.googleapis.com/drive/v3/files/${_driveFileId}?alt=media`);
+    const json = await res.json();
+    const arr  = json.data || json;
+    if (!Array.isArray(arr)) throw new Error('Formato inválido');
+    modalConfirm('Descargar ' + arr.length + ' registros desde Drive? Se reemplazarán los datos locales.', async ok => {
+      if (!ok) { setSyncStatus('idle'); return; }
+      saveData(arr);
+      _dataCache = arr;
+      renderRegistro();
+      renderResumen();
+      const now = new Date().toLocaleString('es');
+      setDriveStatus('Sincronizado ✓  |  Última descarga: ' + now, 'var(--green)');
+      setSyncStatus('ok');
+      setTimeout(() => setSyncStatus('idle'), 3000);
+      toast(arr.length + ' registros descargados de Drive ✓', 'ok');
+    });
+  } catch(e) {
+    setSyncStatus('err');
+    setDriveStatus('Error: ' + e.message, 'var(--red)');
+    toast('Error Drive: ' + e.message, 'err');
+  }
+}
+
+async function driveAutoSync() {
+  if (!_driveReady) return;
+  try {
+    await driveUpload();
+  } catch(e) { console.warn('Drive autoSync:', e.message); }
+}
+
+function driveSignOut() {
+  _gToken = null; _driveFileId = null; _driveReady = false; _tokenClient = null;
+  localStorage.removeItem('driveToken');
+  localStorage.removeItem('driveTokenExp');
+  localStorage.removeItem('driveFileId');
+  setDriveUI(false);
+  setDriveStatus('', '');
+  toast('Desconectado de Google Drive', 'ok');
+}
+
+async function driveAutoRestore() {
+  const clientId = localStorage.getItem('driveClientId');
+  const token    = localStorage.getItem('driveToken');
+  const exp      = parseInt(localStorage.getItem('driveTokenExp') || '0');
+  const fileId   = localStorage.getItem('driveFileId');
+  if (!clientId || !token || Date.now() > exp) return;
+
+  // Restaurar campo Client ID
+  const el = document.getElementById('drive-client-id');
+  if (el) el.value = clientId;
+
+  _gToken      = token;
+  _driveFileId = fileId || null;
+
+  try {
+    await loadGIS();
+    _tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: DRIVE_SCOPE,
+      callback: (resp) => {
+        if (resp.error) return;
+        _gToken = resp.access_token;
+        localStorage.setItem('driveToken', _gToken);
+        localStorage.setItem('driveTokenExp', Date.now() + (resp.expires_in - 60) * 1000);
+      }
+    });
+    setDriveUI(true);
+    setDriveStatus('Reconectado ✓', 'var(--green)');
+
+    // Auto-descarga si hay datos más recientes en Drive
+    if (_driveFileId) {
+      setSyncStatus('syncing');
+      const res  = await driveFetch(`https://www.googleapis.com/drive/v3/files/${_driveFileId}?alt=media`);
+      const json = await res.json();
+      const arr  = json.data || json;
+      if (Array.isArray(arr) && arr.length > 0) {
+        const local = loadData();
+        const driveNewer = arr.length > local.length ||
+          (arr.length > 0 && local.length > 0 &&
+           arr[arr.length-1].fecha > local[local.length-1].fecha);
+        if (driveNewer) {
+          saveData(arr);
+          _dataCache = arr;
+          renderRegistro();
+          renderResumen();
+          toast('Datos sincronizados desde Drive ✓', 'ok');
+        }
+      }
+      const now = new Date().toLocaleString('es');
+      setDriveStatus('Conectado ✓  |  Sync: ' + now, 'var(--green)');
+      setSyncStatus('ok');
+      setTimeout(() => setSyncStatus('idle'), 3000);
+    }
+  } catch(e) {
+    setDriveUI(false);
+    setSyncStatus('idle');
+  }
+}
 
 // Redraw chart on resize
 let _resizeT;
