@@ -658,7 +658,7 @@
 
 <footer style="text-align:center;padding:1.5rem 1rem 2.5rem;pointer-events:none;">
   <span style="font-size:.72rem;color:#334155;font-family:'DM Mono',monospace;letter-spacing:.08em;">
-    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v1.4
+    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v1.5
   </span>
 </footer>
 
@@ -759,6 +759,36 @@ async function idbKVSet(key, val) {
   });
 }
 
+// ── Credenciales: doble persistencia (IndexedDB + localStorage) ──
+// localStorage NO es fiable a largo plazo:
+//  • iOS Safari (ITP) lo purga tras 7 días sin actividad
+//  • Algunos navegadores lo limpian bajo presión de almacenamiento
+//  • Modo privado / borrado manual de caché lo elimina
+// IndexedDB con navigator.storage.persist() es mucho más resistente,
+// así que guardamos las credenciales en AMBOS sitios y, si localStorage
+// se ha vaciado, las restauramos desde IndexedDB al arrancar.
+async function setCred(key, val) {
+  try { localStorage.setItem(key, val); } catch {}
+  try { await idbKVSet(key, val); } catch {}
+}
+
+async function delCred(key) {
+  try { localStorage.removeItem(key); } catch {}
+  try { await idbKVSet(key, ''); } catch {}
+}
+
+async function restoreCreds() {
+  const keys = ['ghToken','ghGist','driveClientId','driveToken','driveTokenExp','driveFileId'];
+  for (const k of keys) {
+    if (!localStorage.getItem(k)) {
+      try {
+        const v = await idbKVGet(k);
+        if (v) { try { localStorage.setItem(k, v); } catch {} }
+      } catch {}
+    }
+  }
+}
+
 // ── Capa de compatibilidad síncrona (usa cache en memoria) ───
 let _dataCache = null;   // cache en memoria para lecturas síncronas
 
@@ -793,6 +823,10 @@ async function initStorage() {
     const granted = await navigator.storage.persist();
     if (!granted) console.warn('FibraControl: almacenamiento persistente no concedido');
   }
+
+  // Restaurar credenciales desde IndexedDB si localStorage las perdió
+  // (iOS Safari ITP, limpieza de caché, etc.)
+  await restoreCreds();
 
   try {
     // Cargar desde IndexedDB
@@ -1402,8 +1436,8 @@ function setSyncStatus(state) {
 function saveGHcreds() {
   const tok  = document.getElementById('gh-token').value;
   const gist = document.getElementById('gh-gist').value;
-  if (tok)  localStorage.setItem('ghToken', tok);
-  if (gist) localStorage.setItem('ghGist',  gist);
+  if (tok)  setCred('ghToken', tok);
+  if (gist) setCred('ghGist',  gist);
   setSyncStatus(tok ? 'idle' : 'none');
 }
 
@@ -1433,7 +1467,7 @@ async function ghUploadSilent(token, gistId) {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const json   = await res.json();
     document.getElementById('gh-gist').value = json.id;
-    localStorage.setItem('ghGist', json.id);
+    setCred('ghGist', json.id);
     setSyncStatus('ok');
     // Volver a idle tras 4 segundos
     setTimeout(() => setSyncStatus('idle'), 4000);
@@ -1588,7 +1622,7 @@ let _driveReady  = false;
 
 function saveDriveCreds() {
   const cid = document.getElementById('drive-client-id').value.trim();
-  if (cid) localStorage.setItem('driveClientId', cid);
+  if (cid) setCred('driveClientId', cid);
 }
 
 function loadGIS() {
@@ -1619,7 +1653,7 @@ async function driveSignIn() {
   const clientId = document.getElementById('drive-client-id').value.trim()
                 || localStorage.getItem('driveClientId');
   if (!clientId) { toast('Introduce el Client ID de Google', 'err'); return; }
-  localStorage.setItem('driveClientId', clientId);
+  setCred('driveClientId', clientId);
 
   try {
     await loadGIS();
@@ -1631,9 +1665,9 @@ async function driveSignIn() {
     callback: async (resp) => {
       if (resp.error) { toast('Error Google: ' + resp.error, 'err'); return; }
       _gToken = resp.access_token;
-      localStorage.setItem('driveToken', _gToken);
+      setCred('driveToken', _gToken);
       // El token dura 1h; guardamos tiempo de expiración
-      localStorage.setItem('driveTokenExp', Date.now() + (resp.expires_in - 60) * 1000);
+      setCred('driveTokenExp', String(Date.now() + (resp.expires_in - 60) * 1000));
       setDriveUI(true);
       setDriveStatus('Conectado ✓ — buscando archivo en Drive…', 'var(--green)');
       await driveFindOrCreate();
@@ -1652,8 +1686,8 @@ async function driveEnsureToken() {
     _tokenClient.callback = (resp) => {
       if (resp.error) { res(false); return; }
       _gToken = resp.access_token;
-      localStorage.setItem('driveToken', _gToken);
-      localStorage.setItem('driveTokenExp', Date.now() + (resp.expires_in - 60) * 1000);
+      setCred('driveToken', _gToken);
+      setCred('driveTokenExp', String(Date.now() + (resp.expires_in - 60) * 1000));
       res(true);
     };
     _tokenClient.requestAccessToken({ prompt: '' });
@@ -1676,7 +1710,7 @@ async function driveFindOrCreate() {
   const json = await res.json();
   if (json.files && json.files.length > 0) {
     _driveFileId = json.files[0].id;
-    localStorage.setItem('driveFileId', _driveFileId);
+    setCred('driveFileId', _driveFileId);
     setDriveStatus('Conectado ✓  |  Archivo: ' + DRIVE_FILE_NAME + '  |  Modificado: ' + new Date(json.files[0].modifiedTime).toLocaleString('es'), 'var(--green)');
   } else {
     // Crear archivo vacío
@@ -1696,7 +1730,7 @@ async function driveCreateFile() {
   });
   const json = await res.json();
   _driveFileId = json.id;
-  localStorage.setItem('driveFileId', _driveFileId);
+  setCred('driveFileId', _driveFileId);
 }
 
 async function driveUpload() {
@@ -1763,9 +1797,9 @@ async function driveAutoSync() {
 
 function driveSignOut() {
   _gToken = null; _driveFileId = null; _driveReady = false; _tokenClient = null;
-  localStorage.removeItem('driveToken');
-  localStorage.removeItem('driveTokenExp');
-  localStorage.removeItem('driveFileId');
+  delCred('driveToken');
+  delCred('driveTokenExp');
+  delCred('driveFileId');
   setDriveUI(false);
   setDriveStatus('', '');
   toast('Desconectado de Google Drive', 'ok');
@@ -1793,8 +1827,8 @@ async function driveAutoRestore() {
       callback: (resp) => {
         if (resp.error) return;
         _gToken = resp.access_token;
-        localStorage.setItem('driveToken', _gToken);
-        localStorage.setItem('driveTokenExp', Date.now() + (resp.expires_in - 60) * 1000);
+        setCred('driveToken', _gToken);
+        setCred('driveTokenExp', String(Date.now() + (resp.expires_in - 60) * 1000));
       }
     });
     setDriveUI(true);
@@ -1845,7 +1879,7 @@ let _deferredInstall = null;
 // Service worker inline para caché offline
 if ('serviceWorker' in navigator) {
   const swCode = `
-    const CACHE = 'fibracontrol-v1';
+    const CACHE = 'fibracontrol-v1.5';
     const ASSETS = [self.location.href.replace(/\/[^\/]*$/, '') || '/'];
     self.addEventListener('install', e => {
       e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
