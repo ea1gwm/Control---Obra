@@ -375,10 +375,7 @@
 <!-- ══ NAVIGATION ═══════════════════════════════════════════════════════ -->
 <nav>
   <div class="nav-logo"><span>🔆</span> FibraControl</div>
-  <div id="sync-indicator" style="display:none;margin-left:.75rem;font-size:.72rem;font-family:var(--mono);align-items:center;gap:.35rem;color:var(--muted);">
-    <span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:var(--muted);display:inline-block;transition:background .3s;"></span>
-    <span id="sync-label">sin sync</span>
-  </div>
+
   <button id="btn-install" class="btn btn-yellow btn-sm" style="display:none;margin:auto 0 auto auto;font-size:.75rem;" onclick="installPWA()">📲 Instalar</button>
   <button class="nav-btn active" onclick="goTab('entrada',this)">📋 Entrada</button>
   <button class="nav-btn" onclick="goTab('registro',this)">📁 Registro</button>
@@ -573,27 +570,7 @@
       <input type="file" id="inp-import" accept=".json" style="display:none" onchange="importJSON(event)">
     </div>
 
-    <div class="card">
-      <div class="card-title">Sincronización automática — GitHub Gist</div>
-      <div class="info-box" style="margin-bottom:1rem;">
-        ☁ Con el token configurado, <strong>cada día guardado se sube automáticamente</strong> al Gist y se descarga al abrir la app en cualquier dispositivo. Así PC y móvil siempre están sincronizados.<br><br>
-        <strong>Cómo obtener el token:</strong> github.com → Settings → Developer settings → Personal access tokens → Tokens (classic) → New token → marcar <em>gist</em> → Generate.
-      </div>
-      <div class="sync-grid">
-        <div>
-          <label>Token GitHub (PAT)</label>
-          <input type="password" id="gh-token" placeholder="ghp_…" oninput="saveGHcreds()">
-        </div>
-        <div>
-          <label>Gist ID (vacío = crear nuevo)</label>
-          <input type="text" id="gh-gist" placeholder="Se rellena solo al subir" oninput="saveGHcreds()">
-        </div>
-      </div>
-      <div class="export-grid">
-        <button class="btn btn-blue" onclick="ghUpload()">☁ Subir ahora</button>
-        <button class="btn btn-ghost" onclick="ghDownload()">⬇ Descargar ahora</button>
-      </div>
-    </div>
+
 
     <div class="card">
       <div class="card-title">Sincronización Google Drive</div>
@@ -759,36 +736,6 @@ async function idbKVSet(key, val) {
   });
 }
 
-// ── Credenciales: doble persistencia (IndexedDB + localStorage) ──
-// localStorage NO es fiable a largo plazo:
-//  • iOS Safari (ITP) lo purga tras 7 días sin actividad
-//  • Algunos navegadores lo limpian bajo presión de almacenamiento
-//  • Modo privado / borrado manual de caché lo elimina
-// IndexedDB con navigator.storage.persist() es mucho más resistente,
-// así que guardamos las credenciales en AMBOS sitios y, si localStorage
-// se ha vaciado, las restauramos desde IndexedDB al arrancar.
-async function setCred(key, val) {
-  try { localStorage.setItem(key, val); } catch {}
-  try { await idbKVSet(key, val); } catch {}
-}
-
-async function delCred(key) {
-  try { localStorage.removeItem(key); } catch {}
-  try { await idbKVSet(key, ''); } catch {}
-}
-
-async function restoreCreds() {
-  const keys = ['ghToken','ghGist','driveClientId','driveToken','driveTokenExp','driveFileId'];
-  for (const k of keys) {
-    if (!localStorage.getItem(k)) {
-      try {
-        const v = await idbKVGet(k);
-        if (v) { try { localStorage.setItem(k, v); } catch {} }
-      } catch {}
-    }
-  }
-}
-
 // ── Capa de compatibilidad síncrona (usa cache en memoria) ───
 let _dataCache = null;   // cache en memoria para lecturas síncronas
 
@@ -824,10 +771,6 @@ async function initStorage() {
     if (!granted) console.warn('FibraControl: almacenamiento persistente no concedido');
   }
 
-  // Restaurar credenciales desde IndexedDB si localStorage las perdió
-  // (iOS Safari ITP, limpieza de caché, etc.)
-  await restoreCreds();
-
   try {
     // Cargar desde IndexedDB
     const idbData = await idbGetAll();
@@ -855,11 +798,20 @@ async function initStorage() {
         localStorage.setItem(OBJ_KEY, JSON.stringify(idbObj));
       }
     }
+
+    // Restaurar credenciales Drive desde IndexedDB
+    const idbCid  = await idbKVGet('driveClientId').catch(() => null);
+    const idbTok  = await idbKVGet('driveToken').catch(() => null);
+    const idbExp  = await idbKVGet('driveTokenExp').catch(() => null);
+    const idbFid  = await idbKVGet('driveFileId').catch(() => null);
+    if (idbCid)  localStorage.setItem('driveClientId', idbCid);
+    if (idbTok)  localStorage.setItem('driveToken', idbTok);
+    if (idbExp)  localStorage.setItem('driveTokenExp', idbExp);
+    if (idbFid)  localStorage.setItem('driveFileId', idbFid);
+
   } catch(e) {
-    // Si IndexedDB falla, usar localStorage
-    try {
-      _dataCache = JSON.parse(localStorage.getItem(STORE)) || [];
-    } catch { _dataCache = []; }
+    try { _dataCache = JSON.parse(localStorage.getItem(STORE)) || []; }
+    catch { _dataCache = []; }
   }
 }
 
@@ -1086,8 +1038,7 @@ function guardarDia() {
   if (idx >= 0) { data[idx] = reg; saveData(data); toast('Día actualizado ✓', 'ok'); }
   else          { data.push(reg);  saveData(data); toast('Día guardado ✓',     'ok'); }
 
-  // Auto-sync a Gist y Drive si están configurados
-  autoSync();
+  // Auto-sync a Drive
   driveAutoSync();
 }
 
@@ -1436,8 +1387,8 @@ function setSyncStatus(state) {
 function saveGHcreds() {
   const tok  = document.getElementById('gh-token').value;
   const gist = document.getElementById('gh-gist').value;
-  if (tok)  setCred('ghToken', tok);
-  if (gist) setCred('ghGist',  gist);
+  if (tok)  localStorage.setItem('ghToken', tok);
+  if (gist) localStorage.setItem('ghGist',  gist);
   setSyncStatus(tok ? 'idle' : 'none');
 }
 
@@ -1467,7 +1418,7 @@ async function ghUploadSilent(token, gistId) {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const json   = await res.json();
     document.getElementById('gh-gist').value = json.id;
-    setCred('ghGist', json.id);
+    localStorage.setItem('ghGist', json.id);
     setSyncStatus('ok');
     // Volver a idle tras 4 segundos
     setTimeout(() => setSyncStatus('idle'), 4000);
@@ -1582,12 +1533,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('res-mes').value  = now.getMonth();
   document.getElementById('res-anio').value = now.getFullYear();
 
-  // GH creds
-  const savedTok  = localStorage.getItem('ghToken');
-  const savedGist = localStorage.getItem('ghGist');
-  if (savedTok)  document.getElementById('gh-token').value = savedTok;
-  if (savedGist) document.getElementById('gh-gist').value  = savedGist;
-
   // Drive Client ID
   const savedCid = localStorage.getItem('driveClientId');
   if (savedCid) document.getElementById('drive-client-id').value = savedCid;
@@ -1602,9 +1547,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initial renders
   recalc();
   renderResumen();
-
-  // Auto-descarga desde Gist si está configurado
-  autoDownloadOnStart();
 
   // Reconectar Drive si había sesión activa
   driveAutoRestore();
@@ -1622,7 +1564,10 @@ let _driveReady  = false;
 
 function saveDriveCreds() {
   const cid = document.getElementById('drive-client-id').value.trim();
-  if (cid) setCred('driveClientId', cid);
+  if (cid) {
+    localStorage.setItem('driveClientId', cid);
+    idbKVSet('driveClientId', cid).catch(() => {});
+  }
 }
 
 function loadGIS() {
@@ -1653,7 +1598,7 @@ async function driveSignIn() {
   const clientId = document.getElementById('drive-client-id').value.trim()
                 || localStorage.getItem('driveClientId');
   if (!clientId) { toast('Introduce el Client ID de Google', 'err'); return; }
-  setCred('driveClientId', clientId);
+  localStorage.setItem('driveClientId', clientId);
 
   try {
     await loadGIS();
@@ -1665,9 +1610,10 @@ async function driveSignIn() {
     callback: async (resp) => {
       if (resp.error) { toast('Error Google: ' + resp.error, 'err'); return; }
       _gToken = resp.access_token;
-      setCred('driveToken', _gToken);
-      // El token dura 1h; guardamos tiempo de expiración
-      setCred('driveTokenExp', String(Date.now() + (resp.expires_in - 60) * 1000));
+      localStorage.setItem('driveToken', _gToken);
+      localStorage.setItem('driveTokenExp', Date.now() + (resp.expires_in - 60) * 1000);
+      idbKVSet('driveToken', _gToken).catch(() => {});
+      idbKVSet('driveTokenExp', String(Date.now() + (resp.expires_in - 60) * 1000)).catch(() => {});
       setDriveUI(true);
       setDriveStatus('Conectado ✓ — buscando archivo en Drive…', 'var(--green)');
       await driveFindOrCreate();
@@ -1686,8 +1632,8 @@ async function driveEnsureToken() {
     _tokenClient.callback = (resp) => {
       if (resp.error) { res(false); return; }
       _gToken = resp.access_token;
-      setCred('driveToken', _gToken);
-      setCred('driveTokenExp', String(Date.now() + (resp.expires_in - 60) * 1000));
+      localStorage.setItem('driveToken', _gToken);
+      localStorage.setItem('driveTokenExp', Date.now() + (resp.expires_in - 60) * 1000);
       res(true);
     };
     _tokenClient.requestAccessToken({ prompt: '' });
@@ -1710,7 +1656,8 @@ async function driveFindOrCreate() {
   const json = await res.json();
   if (json.files && json.files.length > 0) {
     _driveFileId = json.files[0].id;
-    setCred('driveFileId', _driveFileId);
+    localStorage.setItem('driveFileId', _driveFileId);
+    idbKVSet('driveFileId', _driveFileId).catch(() => {});
     setDriveStatus('Conectado ✓  |  Archivo: ' + DRIVE_FILE_NAME + '  |  Modificado: ' + new Date(json.files[0].modifiedTime).toLocaleString('es'), 'var(--green)');
   } else {
     // Crear archivo vacío
@@ -1730,7 +1677,7 @@ async function driveCreateFile() {
   });
   const json = await res.json();
   _driveFileId = json.id;
-  setCred('driveFileId', _driveFileId);
+  localStorage.setItem('driveFileId', _driveFileId);
 }
 
 async function driveUpload() {
@@ -1797,9 +1744,9 @@ async function driveAutoSync() {
 
 function driveSignOut() {
   _gToken = null; _driveFileId = null; _driveReady = false; _tokenClient = null;
-  delCred('driveToken');
-  delCred('driveTokenExp');
-  delCred('driveFileId');
+  localStorage.removeItem('driveToken');
+  localStorage.removeItem('driveTokenExp');
+  localStorage.removeItem('driveFileId');
   setDriveUI(false);
   setDriveStatus('', '');
   toast('Desconectado de Google Drive', 'ok');
@@ -1827,8 +1774,8 @@ async function driveAutoRestore() {
       callback: (resp) => {
         if (resp.error) return;
         _gToken = resp.access_token;
-        setCred('driveToken', _gToken);
-        setCred('driveTokenExp', String(Date.now() + (resp.expires_in - 60) * 1000));
+        localStorage.setItem('driveToken', _gToken);
+        localStorage.setItem('driveTokenExp', Date.now() + (resp.expires_in - 60) * 1000);
       }
     });
     setDriveUI(true);
@@ -1879,7 +1826,7 @@ let _deferredInstall = null;
 // Service worker inline para caché offline
 if ('serviceWorker' in navigator) {
   const swCode = `
-    const CACHE = 'fibracontrol-v1.5';
+    const CACHE = 'fibracontrol-v1';
     const ASSETS = [self.location.href.replace(/\/[^\/]*$/, '') || '/'];
     self.addEventListener('install', e => {
       e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
