@@ -12,6 +12,10 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">
   <title>FibraControl — Producción Diaria</title>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
@@ -573,24 +577,47 @@
 
 
     <div class="card">
-      <div class="card-title">Sincronización Google Drive</div>
-      <div class="info-box" style="margin-bottom:1rem;">
-        ☁ Guarda y recupera tus datos directamente en tu Google Drive. Una vez conectado, <strong>cada día guardado se sube automáticamente</strong> y se descarga al abrir la app en cualquier dispositivo.
+      <div class="card-title">Sincronización Firebase</div>
+      <div class="info-box" style="margin-bottom:1rem;" id="fb-info-box">
+        🔥 Datos sincronizados en tiempo real entre todos tus dispositivos. Inicias sesión <strong>una sola vez</strong> con Google y queda guardado permanentemente.
       </div>
-      <div style="margin-bottom:1rem;">
-        <label>Client ID de Google</label>
-        <input type="text" id="drive-client-id" placeholder="xxxxx.apps.googleusercontent.com" oninput="saveDriveCreds()">
+
+      <!-- Estado: SIN configurar -->
+      <div id="fb-state-setup">
+        <p style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem;line-height:1.6;">
+          <strong style="color:var(--text);">Configuración inicial (una sola vez):</strong><br>
+          1. Ve a <a href="https://console.firebase.google.com" target="_blank" style="color:var(--blue);">console.firebase.google.com</a> y crea un proyecto<br>
+          2. Activa <strong>Authentication</strong> → Sign-in method → habilita <strong>Google</strong><br>
+          3. Activa <strong>Firestore Database</strong> en modo producción<br>
+          4. ⚙️ → Configuración del proyecto → "Tus apps" → añade <strong>Web app</strong><br>
+          5. Copia el objeto <code style="background:var(--bg);padding:1px 4px;border-radius:3px;">firebaseConfig</code> entero y pégalo aquí:
+        </p>
+        <textarea id="fb-config-input" placeholder='Pega aquí el objeto firebaseConfig completo, p.ej.:&#10;{&#10;  apiKey: "AIzaSy...",&#10;  authDomain: "tu-app.firebaseapp.com",&#10;  projectId: "tu-app",&#10;  ...&#10;}' style="min-height:140px;font-family:var(--mono);font-size:.78rem;"></textarea>
+        <button class="btn btn-blue" style="margin-top:.75rem;" onclick="saveFirebaseConfig()">💾 Guardar configuración</button>
       </div>
-      <div class="export-grid" style="align-items:center;">
-        <button class="btn btn-blue" onclick="driveSignIn()" id="btn-drive-login">🔑 Conectar con Google</button>
-        <button class="btn btn-ghost" onclick="driveUpload()" id="btn-drive-upload" style="display:none;">☁ Subir ahora</button>
-        <button class="btn btn-ghost" onclick="driveDownload()" id="btn-drive-download" style="display:none;">⬇ Descargar ahora</button>
-        <button class="btn btn-ghost btn-sm" onclick="driveSignOut()" id="btn-drive-logout" style="display:none;color:var(--red);">✕ Desconectar</button>
+
+      <!-- Estado: configurado, SIN sesión -->
+      <div id="fb-state-signin" style="display:none;">
+        <p style="font-size:.85rem;color:var(--muted);margin-bottom:1rem;">Firebase configurado ✓ — Inicia sesión con tu cuenta de Google:</p>
+        <button class="btn btn-blue" onclick="firebaseSignIn()">🔑 Iniciar sesión con Google</button>
+        <button class="btn btn-ghost btn-sm" style="margin-left:.5rem;" onclick="firebaseResetConfig()">⚙ Cambiar configuración</button>
       </div>
-      <div id="drive-status" style="margin-top:.75rem;font-size:.78rem;color:var(--muted);font-family:var(--mono);"></div>
+
+      <!-- Estado: con sesión activa -->
+      <div id="fb-state-active" style="display:none;">
+        <div style="display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:.5rem;margin-bottom:1rem;">
+          <span style="font-size:1.5rem;">✅</span>
+          <div style="flex:1;font-size:.85rem;">
+            <div style="color:var(--green);font-weight:600;">Sincronizado</div>
+            <div style="color:var(--muted);font-family:var(--mono);font-size:.78rem;" id="fb-user-email"></div>
+          </div>
+        </div>
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem;font-family:var(--mono);" id="fb-last-sync"></div>
+        <button class="btn btn-ghost btn-sm" onclick="firebaseSignOut()">✕ Cerrar sesión</button>
+      </div>
     </div>
 
-    <div class="danger-zone">
+        <div class="danger-zone">
       <div class="danger-title">⚠ Zona Peligrosa</div>
       <p style="font-size:.83rem;color:var(--muted);margin-bottom:1rem;">Esta acción borrará todos los registros de producción de forma permanente e irreversible.</p>
       <button class="btn btn-red" onclick="borrarTodo()">🗑 Borrar todos los datos</button>
@@ -635,7 +662,7 @@
 
 <footer style="text-align:center;padding:1.5rem 1rem 2.5rem;pointer-events:none;">
   <span style="font-size:.72rem;color:#334155;font-family:'DM Mono',monospace;letter-spacing:.08em;">
-    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v1.5
+    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v2.0
   </span>
 </footer>
 
@@ -798,16 +825,6 @@ async function initStorage() {
         localStorage.setItem(OBJ_KEY, JSON.stringify(idbObj));
       }
     }
-
-    // Restaurar credenciales Drive desde IndexedDB
-    const idbCid  = await idbKVGet('driveClientId').catch(() => null);
-    const idbTok  = await idbKVGet('driveToken').catch(() => null);
-    const idbExp  = await idbKVGet('driveTokenExp').catch(() => null);
-    const idbFid  = await idbKVGet('driveFileId').catch(() => null);
-    if (idbCid)  localStorage.setItem('driveClientId', idbCid);
-    if (idbTok)  localStorage.setItem('driveToken', idbTok);
-    if (idbExp)  localStorage.setItem('driveTokenExp', idbExp);
-    if (idbFid)  localStorage.setItem('driveFileId', idbFid);
 
   } catch(e) {
     try { _dataCache = JSON.parse(localStorage.getItem(STORE)) || []; }
@@ -1533,9 +1550,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('res-mes').value  = now.getMonth();
   document.getElementById('res-anio').value = now.getFullYear();
 
-  // Drive Client ID
-  const savedCid = localStorage.getItem('driveClientId');
-  if (savedCid) document.getElementById('drive-client-id').value = savedCid;
 
   // Ajustes
   loadAjustes();
@@ -1548,270 +1562,249 @@ document.addEventListener('DOMContentLoaded', async () => {
   recalc();
   renderResumen();
 
-  // Reconectar Drive si había sesión activa
-  driveAutoRestore();
+  // Inicializar Firebase si está configurado
+  firebaseAutoInit();
 });
 
 // ════════════════════════════════════════════════════════════
-// GOOGLE DRIVE SYNC
+// FIREBASE SYNC — Auth + Firestore en tiempo real
 // ════════════════════════════════════════════════════════════
-const DRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive.file';
-const DRIVE_FILE_NAME = 'fibra_control.json';
-let _gToken     = null;
-let _driveFileId = null;
-let _tokenClient = null;
-let _driveReady  = false;
+const FB_CONFIG_KEY  = 'firebaseConfig';
+const FB_COLLECTION  = 'fibracontrol';
+let _fbApp  = null;
+let _fbAuth = null;
+let _fbDb   = null;
+let _fbUnsub = null;
+let _fbInitialized = false;
+let _fbSaveTimer = null;
+let _fbApplyingRemote = false;
 
-function saveDriveCreds() {
-  const cid = document.getElementById('drive-client-id').value.trim();
-  if (cid) {
-    localStorage.setItem('driveClientId', cid);
-    idbKVSet('driveClientId', cid).catch(() => {});
+async function loadFbConfig() {
+  let cfg = await idbKVGet(FB_CONFIG_KEY).catch(() => null);
+  if (!cfg) {
+    try { cfg = JSON.parse(localStorage.getItem(FB_CONFIG_KEY)); }
+    catch { cfg = null; }
+  }
+  return cfg;
+}
+
+function parseFbConfig(text) {
+  // Acepta JSON puro, objeto JS, o snippet completo "const firebaseConfig = {...};"
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('No se encontró el objeto de configuración');
+  let cleaned = match[0]
+    .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?\s*:/g, '"$2":')  // comillas a las claves
+    .replace(/'([^']*)'/g, '"$1"')                                 // comillas simples a dobles
+    .replace(/,\s*\}/g, '}')                                     // coma final
+    .replace(/,\s*\]/g, ']');
+  return JSON.parse(cleaned);
+}
+
+async function saveFirebaseConfig() {
+  const txt = document.getElementById('fb-config-input').value.trim();
+  if (!txt) { toast('Pega la configuración primero', 'err'); return; }
+  let cfg;
+  try { cfg = parseFbConfig(txt); }
+  catch(e) { toast('Configuración inválida: ' + e.message, 'err'); return; }
+
+  if (!cfg.apiKey || !cfg.projectId) {
+    toast('La configuración no es válida (faltan apiKey o projectId)', 'err');
+    return;
+  }
+
+  localStorage.setItem(FB_CONFIG_KEY, JSON.stringify(cfg));
+  await idbKVSet(FB_CONFIG_KEY, cfg).catch(() => {});
+  toast('Configuración guardada ✓', 'ok');
+
+  try {
+    await initFirebase(cfg);
+    updateFirebaseUI();
+  } catch(e) {
+    toast('Error inicializando: ' + e.message, 'err');
   }
 }
 
-function loadGIS() {
-  return new Promise((res, rej) => {
-    if (window.google?.accounts?.oauth2) { res(); return; }
-    const s = document.createElement('script');
-    s.src = 'https://accounts.google.com/gsi/client';
-    s.onload  = res;
-    s.onerror = () => rej(new Error('No se pudo cargar Google Identity Services'));
-    document.head.appendChild(s);
-  });
-}
+async function initFirebase(config) {
+  if (_fbInitialized) return;
+  if (!window.firebase) throw new Error('Firebase SDK no cargado');
 
-function setDriveUI(connected) {
-  document.getElementById('btn-drive-login').style.display    = connected ? 'none'         : 'inline-flex';
-  document.getElementById('btn-drive-upload').style.display   = connected ? 'inline-flex'  : 'none';
-  document.getElementById('btn-drive-download').style.display = connected ? 'inline-flex'  : 'none';
-  document.getElementById('btn-drive-logout').style.display   = connected ? 'inline-flex'  : 'none';
-  _driveReady = connected;
-}
+  _fbApp  = firebase.initializeApp(config);
+  _fbAuth = firebase.auth();
+  _fbDb   = firebase.firestore();
 
-function setDriveStatus(msg, color) {
-  const el = document.getElementById('drive-status');
-  if (el) { el.textContent = msg; el.style.color = color || 'var(--muted)'; }
-}
-
-async function driveSignIn() {
-  const clientId = document.getElementById('drive-client-id').value.trim()
-                || localStorage.getItem('driveClientId');
-  if (!clientId) { toast('Introduce el Client ID de Google', 'err'); return; }
-  localStorage.setItem('driveClientId', clientId);
-
+  // Persistencia offline
   try {
-    await loadGIS();
-  } catch(e) { toast('Error cargando Google: ' + e.message, 'err'); return; }
+    await _fbDb.enablePersistence({ synchronizeTabs: true });
+  } catch(e) {
+    console.warn('Firestore persistence:', e.code);
+  }
 
-  _tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: clientId,
-    scope: DRIVE_SCOPE,
-    callback: async (resp) => {
-      if (resp.error) { toast('Error Google: ' + resp.error, 'err'); return; }
-      _gToken = resp.access_token;
-      localStorage.setItem('driveToken', _gToken);
-      localStorage.setItem('driveTokenExp', Date.now() + (resp.expires_in - 60) * 1000);
-      idbKVSet('driveToken', _gToken).catch(() => {});
-      idbKVSet('driveTokenExp', String(Date.now() + (resp.expires_in - 60) * 1000)).catch(() => {});
-      setDriveUI(true);
-      setDriveStatus('Conectado ✓ — buscando archivo en Drive…', 'var(--green)');
-      await driveFindOrCreate();
-      toast('Google Drive conectado ✓', 'ok');
-    }
-  });
-  _tokenClient.requestAccessToken({ prompt: 'consent' });
+  // Persistencia de sesión (queda guardada para siempre)
+  await _fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+
+  // Listener de cambios de autenticación
+  _fbAuth.onAuthStateChanged(handleFbAuthChange);
+  _fbInitialized = true;
 }
 
-async function driveEnsureToken() {
-  const exp = parseInt(localStorage.getItem('driveTokenExp') || '0');
-  if (_gToken && Date.now() < exp) return true;
-  // Token expirado — pedir nuevo silenciosamente
-  return new Promise(res => {
-    if (!_tokenClient) { res(false); return; }
-    _tokenClient.callback = (resp) => {
-      if (resp.error) { res(false); return; }
-      _gToken = resp.access_token;
-      localStorage.setItem('driveToken', _gToken);
-      localStorage.setItem('driveTokenExp', Date.now() + (resp.expires_in - 60) * 1000);
-      res(true);
-    };
-    _tokenClient.requestAccessToken({ prompt: '' });
-  });
-}
-
-async function driveFetch(url, opts = {}) {
-  const ok = await driveEnsureToken();
-  if (!ok) throw new Error('No autenticado');
-  opts.headers = { ...(opts.headers || {}), 'Authorization': 'Bearer ' + _gToken };
-  const res = await fetch(url, opts);
-  if (!res.ok) throw new Error('Drive API: HTTP ' + res.status);
-  return res;
-}
-
-async function driveFindOrCreate() {
-  // Buscar archivo existente
-  const q   = encodeURIComponent(`name='${DRIVE_FILE_NAME}' and trashed=false`);
-  const res = await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime)&spaces=drive`);
-  const json = await res.json();
-  if (json.files && json.files.length > 0) {
-    _driveFileId = json.files[0].id;
-    localStorage.setItem('driveFileId', _driveFileId);
-    idbKVSet('driveFileId', _driveFileId).catch(() => {});
-    setDriveStatus('Conectado ✓  |  Archivo: ' + DRIVE_FILE_NAME + '  |  Modificado: ' + new Date(json.files[0].modifiedTime).toLocaleString('es'), 'var(--green)');
+function handleFbAuthChange(user) {
+  if (user) {
+    startFbDataSync(user.uid);
   } else {
-    // Crear archivo vacío
-    await driveCreateFile();
-    setDriveStatus('Conectado ✓  |  Archivo nuevo creado en Drive', 'var(--green)');
+    if (_fbUnsub) { _fbUnsub(); _fbUnsub = null; }
+  }
+  updateFirebaseUI();
+}
+
+async function firebaseSignIn() {
+  if (!_fbAuth) { toast('Configura Firebase primero', 'err'); return; }
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    await _fbAuth.signInWithPopup(provider);
+    toast('Sesión iniciada ✓', 'ok');
+  } catch(e) {
+    toast('Error: ' + (e.message || e.code), 'err');
   }
 }
 
-async function driveCreateFile() {
-  const meta    = JSON.stringify({ name: DRIVE_FILE_NAME, mimeType: 'application/json' });
-  const payload = JSON.stringify({ version: 1, data: loadData() });
-  const form    = new FormData();
-  form.append('metadata', new Blob([meta],    { type: 'application/json' }));
-  form.append('file',     new Blob([payload], { type: 'application/json' }));
-  const res  = await driveFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
-    method: 'POST', body: form
+async function firebaseSignOut() {
+  if (!_fbAuth) return;
+  try {
+    await _fbAuth.signOut();
+    toast('Sesión cerrada', 'ok');
+  } catch(e) { toast('Error: ' + e.message, 'err'); }
+}
+
+function firebaseResetConfig() {
+  modalConfirm('¿Cambiar la configuración de Firebase? Tendrás que pegar una nueva.', async ok => {
+    if (!ok) return;
+    if (_fbAuth) { try { await _fbAuth.signOut(); } catch {} }
+    localStorage.removeItem(FB_CONFIG_KEY);
+    await idbKVSet(FB_CONFIG_KEY, null).catch(() => {});
+    _fbInitialized = false;
+    _fbApp = null; _fbAuth = null; _fbDb = null;
+    updateFirebaseUI();
+    document.getElementById('fb-config-input').value = '';
   });
-  const json = await res.json();
-  _driveFileId = json.id;
-  localStorage.setItem('driveFileId', _driveFileId);
 }
 
-async function driveUpload() {
-  if (!_driveReady) { toast('Conecta primero con Google Drive', 'err'); return; }
-  setSyncStatus('syncing');
-  setDriveStatus('Subiendo…', 'var(--yellow)');
-  try {
-    const payload = JSON.stringify({ version: 1, data: loadData() });
-    if (!_driveFileId) await driveCreateFile();
-    else {
-      await driveFetch(`https://www.googleapis.com/upload/drive/v3/files/${_driveFileId}?uploadType=media`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: payload
-      });
-    }
-    const now = new Date().toLocaleString('es');
-    setDriveStatus('Sincronizado ✓  |  Última subida: ' + now, 'var(--green)');
-    setSyncStatus('ok');
-    setTimeout(() => setSyncStatus('idle'), 3000);
-    toast('Subido a Drive ✓', 'ok');
-  } catch(e) {
-    setSyncStatus('err');
-    setDriveStatus('Error: ' + e.message, 'var(--red)');
-    toast('Error Drive: ' + e.message, 'err');
-  }
-}
-
-async function driveDownload() {
-  if (!_driveReady) { toast('Conecta primero con Google Drive', 'err'); return; }
-  setSyncStatus('syncing');
-  setDriveStatus('Descargando…', 'var(--yellow)');
-  try {
-    if (!_driveFileId) { await driveFindOrCreate(); }
-    const res  = await driveFetch(`https://www.googleapis.com/drive/v3/files/${_driveFileId}?alt=media`);
-    const json = await res.json();
-    const arr  = json.data || json;
-    if (!Array.isArray(arr)) throw new Error('Formato inválido');
-    modalConfirm('Descargar ' + arr.length + ' registros desde Drive? Se reemplazarán los datos locales.', async ok => {
-      if (!ok) { setSyncStatus('idle'); return; }
-      saveData(arr);
-      _dataCache = arr;
-      renderRegistro();
-      renderResumen();
-      const now = new Date().toLocaleString('es');
-      setDriveStatus('Sincronizado ✓  |  Última descarga: ' + now, 'var(--green)');
-      setSyncStatus('ok');
-      setTimeout(() => setSyncStatus('idle'), 3000);
-      toast(arr.length + ' registros descargados de Drive ✓', 'ok');
-    });
-  } catch(e) {
-    setSyncStatus('err');
-    setDriveStatus('Error: ' + e.message, 'var(--red)');
-    toast('Error Drive: ' + e.message, 'err');
-  }
-}
-
-async function driveAutoSync() {
-  if (!_driveReady) return;
-  try {
-    await driveUpload();
-  } catch(e) { console.warn('Drive autoSync:', e.message); }
-}
-
-function driveSignOut() {
-  _gToken = null; _driveFileId = null; _driveReady = false; _tokenClient = null;
-  localStorage.removeItem('driveToken');
-  localStorage.removeItem('driveTokenExp');
-  localStorage.removeItem('driveFileId');
-  setDriveUI(false);
-  setDriveStatus('', '');
-  toast('Desconectado de Google Drive', 'ok');
-}
-
-async function driveAutoRestore() {
-  const clientId = localStorage.getItem('driveClientId');
-  const token    = localStorage.getItem('driveToken');
-  const exp      = parseInt(localStorage.getItem('driveTokenExp') || '0');
-  const fileId   = localStorage.getItem('driveFileId');
-  if (!clientId || !token || Date.now() > exp) return;
-
-  // Restaurar campo Client ID
-  const el = document.getElementById('drive-client-id');
-  if (el) el.value = clientId;
-
-  _gToken      = token;
-  _driveFileId = fileId || null;
-
-  try {
-    await loadGIS();
-    _tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: clientId,
-      scope: DRIVE_SCOPE,
-      callback: (resp) => {
-        if (resp.error) return;
-        _gToken = resp.access_token;
-        localStorage.setItem('driveToken', _gToken);
-        localStorage.setItem('driveTokenExp', Date.now() + (resp.expires_in - 60) * 1000);
+function startFbDataSync(uid) {
+  if (_fbUnsub) _fbUnsub();
+  _fbUnsub = _fbDb.collection(FB_COLLECTION).doc(uid).onSnapshot(
+    async doc => {
+      if (!doc.exists) {
+        // Primera vez: subir datos locales si hay
+        if ((_dataCache || []).length > 0 || Object.keys(loadObj()).length > 0) {
+          await pushToFirestore();
+        }
+        return;
       }
-    });
-    setDriveUI(true);
-    setDriveStatus('Reconectado ✓', 'var(--green)');
+      // Evitar procesar nuestras propias escrituras pendientes
+      if (doc.metadata.hasPendingWrites) return;
 
-    // Auto-descarga si hay datos más recientes en Drive
-    if (_driveFileId) {
-      setSyncStatus('syncing');
-      const res  = await driveFetch(`https://www.googleapis.com/drive/v3/files/${_driveFileId}?alt=media`);
-      const json = await res.json();
-      const arr  = json.data || json;
-      if (Array.isArray(arr) && arr.length > 0) {
-        const local = loadData();
-        const driveNewer = arr.length > local.length ||
-          (arr.length > 0 && local.length > 0 &&
-           arr[arr.length-1].fecha > local[local.length-1].fecha);
-        if (driveNewer) {
-          saveData(arr);
-          _dataCache = arr;
-          renderRegistro();
-          renderResumen();
-          toast('Datos sincronizados desde Drive ✓', 'ok');
+      const data = doc.data();
+      let changed = false;
+
+      // Actualizar registros si difieren
+      if (Array.isArray(data.registros)) {
+        const remoteJson = JSON.stringify(data.registros);
+        const localJson  = JSON.stringify(_dataCache || []);
+        if (remoteJson !== localJson) {
+          _fbApplyingRemote = true;
+          _dataCache = data.registros;
+          idbSaveAll(data.registros).catch(() => {});
+          try { localStorage.setItem(STORE, JSON.stringify(data.registros)); } catch {}
+          _fbApplyingRemote = false;
+          changed = true;
         }
       }
-      const now = new Date().toLocaleString('es');
-      setDriveStatus('Conectado ✓  |  Sync: ' + now, 'var(--green)');
-      setSyncStatus('ok');
-      setTimeout(() => setSyncStatus('idle'), 3000);
+
+      // Actualizar ajustes
+      if (data.ajustes && typeof data.ajustes === 'object') {
+        const remoteAj = JSON.stringify(data.ajustes);
+        const localAj  = localStorage.getItem(OBJ_KEY);
+        if (remoteAj !== localAj) {
+          _fbApplyingRemote = true;
+          localStorage.setItem(OBJ_KEY, remoteAj);
+          idbKVSet(OBJ_KEY, data.ajustes).catch(() => {});
+          loadAjustes();
+          _fbApplyingRemote = false;
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        renderRegistro();
+        renderResumen();
+        recalc();
+        updateFirebaseSyncTime();
+      } else {
+        updateFirebaseSyncTime();
+      }
+    },
+    err => console.error('Firestore sync error:', err)
+  );
+}
+
+async function pushToFirestore() {
+  if (_fbApplyingRemote) return;
+  if (!_fbAuth?.currentUser || !_fbDb) return;
+  clearTimeout(_fbSaveTimer);
+  _fbSaveTimer = setTimeout(async () => {
+    try {
+      await _fbDb.collection(FB_COLLECTION).doc(_fbAuth.currentUser.uid).set({
+        registros: _dataCache || [],
+        ajustes:   loadObj(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      updateFirebaseSyncTime();
+    } catch(e) {
+      console.error('Firestore push error:', e);
     }
-  } catch(e) {
-    setDriveUI(false);
-    setSyncStatus('idle');
+  }, 400);
+}
+
+// Compatibilidad: la función que se llamaba desde guardarDia
+function driveAutoSync() { pushToFirestore(); }
+
+function updateFirebaseUI() {
+  const setup  = document.getElementById('fb-state-setup');
+  const signin = document.getElementById('fb-state-signin');
+  const active = document.getElementById('fb-state-active');
+  if (!setup) return;
+
+  if (!_fbInitialized) {
+    setup.style.display  = 'block';
+    signin.style.display = 'none';
+    active.style.display = 'none';
+  } else if (!_fbAuth?.currentUser) {
+    setup.style.display  = 'none';
+    signin.style.display = 'block';
+    active.style.display = 'none';
+  } else {
+    setup.style.display  = 'none';
+    signin.style.display = 'none';
+    active.style.display = 'block';
+    const u = _fbAuth.currentUser;
+    document.getElementById('fb-user-email').textContent = u.email || u.displayName || u.uid;
   }
 }
 
-// Redraw chart on resize
+function updateFirebaseSyncTime() {
+  const el = document.getElementById('fb-last-sync');
+  if (el) el.textContent = 'Último sync: ' + new Date().toLocaleString('es');
+}
+
+// Inicialización al cargar
+async function firebaseAutoInit() {
+  const cfg = await loadFbConfig();
+  if (cfg) {
+    try { await initFirebase(cfg); } catch(e) { console.error(e); }
+  }
+  updateFirebaseUI();
+}
+
+// Redraw chart on resize// Redraw chart on resize
 let _resizeT;
 window.addEventListener('resize', () => {
   clearTimeout(_resizeT);
