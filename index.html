@@ -386,6 +386,7 @@
   <button class="nav-btn" onclick="goTab('resumen',this)">📊 Resumen</button>
   <button class="nav-btn" onclick="goTab('datos',this)">💾 Datos</button>
   <button class="nav-btn" onclick="goTab('ajustes',this)">⚙️ Ajustes</button>
+  <button class="nav-btn" style="margin-left:auto;color:var(--blue);" onclick="showHelp()" title="Ayuda">❓</button>
 </nav>
 
 <main>
@@ -460,9 +461,17 @@
       <textarea id="inp-notas" placeholder="Observaciones del día, incidencias, motivo de 0 metros…"></textarea>
     </div>
 
-    <button class="btn btn-yellow btn-full" onclick="guardarDia()">
-      💾 GUARDAR DÍA
-    </button>
+    <div id="edit-banner" style="display:none;background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.3);border-radius:.5rem;padding:.7rem 1rem;margin-bottom:.75rem;font-size:.85rem;color:var(--blue);">
+      ✏️ Editando: <strong id="edit-fecha-label" style="font-family:var(--mono);"></strong>
+    </div>
+    <div style="display:flex;gap:.75rem;">
+      <button class="btn btn-yellow btn-full" onclick="guardarDia()" style="flex:1;" id="btn-guardar">
+        💾 GUARDAR DÍA
+      </button>
+      <button class="btn btn-ghost" onclick="cancelarEdicion()" id="btn-cancelar-edit" style="display:none;font-size:.95rem;padding:.75rem 1.2rem;">
+        ✕ Cancelar
+      </button>
+    </div>
   </div>
   <!-- END tab-entrada -->
 
@@ -476,6 +485,7 @@
             <tr>
               <th>Fecha</th>
               <th>Pers.</th>
+              <th>Desplaz.</th>
               <th>Producción</th>
               <th>Total m</th>
               <th>Objetivo</th>
@@ -576,6 +586,46 @@
 
 
 
+    <!-- INVITACIONES PENDIENTES -->
+    <div id="pending-invites" style="display:none;margin-bottom:1rem;"></div>
+
+    <!-- SELECTOR DE EQUIPO -->
+    <div id="team-selector" class="card" style="display:none;">
+      <div class="card-title">Equipo activo</div>
+      <select id="team-selector-dd" onchange="switchTeam(this.value)"></select>
+    </div>
+
+    <!-- GESTIÓN DEL EQUIPO -->
+    <div class="card" id="team-mgmt-card" style="display:none;">
+      <div class="card-title">Miembros del equipo</div>
+      <div id="team-members-list" style="margin-bottom:.75rem;"></div>
+      <div id="invite-box" style="display:none;border-top:1px solid var(--border);padding-top:.75rem;">
+        <label style="font-size:.78rem;color:var(--muted);margin-bottom:.4rem;">Invitar nuevo miembro</label>
+        <div style="display:flex;gap:.5rem;align-items:stretch;flex-wrap:wrap;">
+          <input type="email" id="inv-email" placeholder="correo@gmail.com" style="flex:1;min-width:180px;">
+          <select id="inv-role" style="width:auto;flex:0 0 auto;min-width:140px;">
+            <option value="viewer">👁 Solo ver</option>
+            <option value="editor-own">✏ Editor solo propios</option>
+            <option value="editor">✏ Editor (todo)</option>
+            <option value="admin">👑 Admin</option>
+          </select>
+          <button class="btn btn-blue btn-sm" onclick="fbInviteMember()">✉ Invitar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAPELERA -->
+    <div class="card" id="trash-card" style="display:none;">
+      <div class="card-title">🗑 Papelera (30 días)</div>
+      <div id="trash-list"></div>
+    </div>
+
+    <!-- HISTORIAL DE CAMBIOS -->
+    <div class="card" id="audit-card" style="display:none;">
+      <div class="card-title">📜 Historial de cambios</div>
+      <div id="audit-list" style="max-height:340px;overflow-y:auto;"></div>
+    </div>
+
     <div class="card">
       <div class="card-title">Sincronización Firebase</div>
       <div class="info-box" style="margin-bottom:1rem;" id="fb-info-box">
@@ -608,7 +658,7 @@
         <div style="display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:.5rem;margin-bottom:1rem;">
           <span style="font-size:1.5rem;">✅</span>
           <div style="flex:1;font-size:.85rem;">
-            <div style="color:var(--green);font-weight:600;">Sincronizado</div>
+            <div style="color:var(--green);font-weight:600;">Sincronizado · <span id="fb-my-role" style="font-weight:500;color:var(--yellow);font-size:.78rem;">—</span></div>
             <div style="color:var(--muted);font-family:var(--mono);font-size:.78rem;" id="fb-user-email"></div>
           </div>
         </div>
@@ -662,7 +712,7 @@
 
 <footer style="text-align:center;padding:1.5rem 1rem 2.5rem;pointer-events:none;">
   <span style="font-size:.72rem;color:#334155;font-family:'DM Mono',monospace;letter-spacing:.08em;">
-    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v2.0
+    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v3.0
   </span>
 </footer>
 
@@ -679,6 +729,44 @@
   </div>
 </div>
 
+<!-- MODAL DE AYUDA -->
+<div id="help-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9998;align-items:center;justify-content:center;padding:1rem;">
+  <div style="background:#1e293b;border:1px solid #334155;border-radius:1rem;padding:1.5rem 1.75rem;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.5);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+      <h2 style="font-size:1.1rem;font-weight:700;color:var(--yellow);">❓ Ayuda — FibraControl</h2>
+      <button onclick="closeHelp()" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1;">✕</button>
+    </div>
+    <div style="font-size:.85rem;line-height:1.65;color:var(--text);">
+      <h3 style="font-size:.95rem;color:var(--blue);margin:.5rem 0 .35rem;">📋 Entrada</h3>
+      <p style="color:var(--muted);margin-bottom:.5rem;">Introduce los datos del día (fecha, personas, desplazamientos, líneas de producción Ra/Poste/ICX/Malla). Pulsa <b>Guardar día</b>.</p>
+
+      <h3 style="font-size:.95rem;color:var(--blue);margin:.6rem 0 .35rem;">🔢 Cálculo del cumplimiento</h3>
+      <p style="color:var(--muted);margin-bottom:.5rem;">Cada tipo (Ra, Poste, ICX, Malla) tiene su objetivo. Varias filas del mismo tipo suman a un único objetivo. El % global es la suma de los % por tipo, ignorando los tipos con 0 metros.</p>
+
+      <h3 style="font-size:.95rem;color:var(--blue);margin:.6rem 0 .35rem;">👥 Equipos y roles</h3>
+      <p style="color:var(--muted);margin-bottom:.4rem;">Cada usuario tiene su propio equipo (es admin). Puedes invitar a otros con uno de estos roles:</p>
+      <ul style="color:var(--muted);margin-left:1.2rem;margin-bottom:.5rem;">
+        <li><b style="color:var(--yellow);">👑 Admin</b>: control total.</li>
+        <li><b style="color:var(--text);">✏ Editor</b>: puede crear, editar y borrar cualquier día.</li>
+        <li><b style="color:var(--text);">✏ Editor solo propios</b>: crea entradas nuevas y solo puede editar/borrar las suyas. No toca tus datos antiguos.</li>
+        <li><b style="color:var(--text);">👁 Solo ver</b>: lectura, no modifica nada.</li>
+      </ul>
+
+      <h3 style="font-size:.95rem;color:var(--blue);margin:.6rem 0 .35rem;">🗑 Papelera</h3>
+      <p style="color:var(--muted);margin-bottom:.5rem;">Cuando borras un día, va a la papelera. Lo puedes recuperar durante 30 días. Pasado ese plazo se elimina automáticamente.</p>
+
+      <h3 style="font-size:.95rem;color:var(--blue);margin:.6rem 0 .35rem;">📜 Historial</h3>
+      <p style="color:var(--muted);margin-bottom:.5rem;">Cada acción queda registrada con quién la hizo, cuándo y a qué día. Aparece en la pestaña <b>Datos</b>.</p>
+
+      <h3 style="font-size:.95rem;color:var(--blue);margin:.6rem 0 .35rem;">📲 Instalar como app</h3>
+      <p style="color:var(--muted);margin-bottom:.5rem;">En Chrome PC: menú → "Instalar FibraControl". En Android: aviso automático o menú → "Añadir a inicio". En iPhone: Safari → compartir → "Añadir a pantalla de inicio".</p>
+
+      <h3 style="font-size:.95rem;color:var(--blue);margin:.6rem 0 .35rem;">🔄 Actualizaciones</h3>
+      <p style="color:var(--muted);">Cuando hay versión nueva aparece un aviso central. Pulsa "Actualizar ahora" para recargar.</p>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div id="toast"></div>
 
@@ -687,8 +775,8 @@
   <div style="background:#1e293b;border:1px solid #334155;border-radius:1rem;padding:1.75rem 2rem;max-width:360px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,.5);">
     <p id="modal-msg" style="font-size:.95rem;margin-bottom:1.5rem;line-height:1.6;"></p>
     <div style="display:flex;gap:.75rem;justify-content:flex-end;">
-      <button class="btn btn-ghost" onclick="modalResp(false)">Cancelar</button>
-      <button class="btn btn-red" onclick="modalResp(true)">Eliminar</button>
+      <button class="btn btn-ghost" id="modal-cancel-btn" onclick="modalResp(false)">Cancelar</button>
+      <button class="btn btn-blue" id="modal-ok-btn" onclick="modalResp(true)">Aceptar</button>
     </div>
   </div>
 </div>
@@ -846,8 +934,15 @@ function toast(msg, type='ok') {
 
 // Modal de confirmación (reemplaza confirm() para compatibilidad móvil)
 let _modalCb = null;
-function modalConfirm(msg, cb) {
+function modalConfirm(msg, cb, opts) {
+  opts = opts || {};
   document.getElementById('modal-msg').textContent = msg;
+  const okBtn  = document.getElementById('modal-ok-btn');
+  const cancel = document.getElementById('modal-cancel-btn');
+  okBtn.textContent  = opts.okText  || 'Aceptar';
+  cancel.textContent = opts.cancelText || 'Cancelar';
+  // Color personalizable: btn-red, btn-yellow, btn-blue, btn-green
+  okBtn.className = 'btn ' + (opts.okColor || 'btn-blue');
   const ov = document.getElementById('modal-overlay');
   ov.style.display = 'flex';
   _modalCb = cb;
@@ -1017,7 +1112,7 @@ function recalc() {
 // ════════════════════════════════════════════════════════════
 // GUARDAR DÍA
 // ════════════════════════════════════════════════════════════
-function guardarDia() {
+async function guardarDia() {
   const fecha    = document.getElementById('inp-fecha').value;
   if (!fecha)    { toast('Indica la fecha', 'err'); return; }
 
@@ -1050,21 +1145,35 @@ function guardarDia() {
   const mediaPersona = Math.round(totalMetros / personas);
   const reg = { fecha, personas, vIda, vVuelta, metros: totalMetros, notas, objEq: totalObj, cumplimiento, mediaPersona, prodDetalle };
 
+  // Guardar local + Firebase (subcolección, con audit y per-record permissions)
   const data = loadData();
   const idx  = data.findIndex(d => d.fecha === fecha);
-  if (idx >= 0) { data[idx] = reg; saveData(data); toast('Día actualizado ✓', 'ok'); }
-  else          { data.push(reg);  saveData(data); toast('Día guardado ✓',     'ok'); }
+  const isEdit = idx >= 0;
+  if (isEdit) { data[idx] = reg; saveData(data); }
+  else        { data.push(reg);  saveData(data); }
 
-  // Auto-sync a Drive
-  driveAutoSync();
+  // Subir a Firestore (si conectado)
+  if (_fbAuth?.currentUser && _teamId) {
+    const ok = await fbSaveRegistro(reg);
+    if (ok) toast(isEdit ? 'Día actualizado ✓' : 'Día guardado ✓', 'ok');
+    else return;  // sin permisos: no resetear
+  } else {
+    toast(isEdit ? 'Día actualizado ✓ (solo local)' : 'Día guardado ✓ (solo local)', 'ok');
+  }
+
+  resetearFormulario();
 }
 
 // ════════════════════════════════════════════════════════════
 // EDITAR DÍA (Registro → Entrada)
 // ════════════════════════════════════════════════════════════
+let _editingFecha = null;
+
 function editarDia(fecha) {
   const reg = loadData().find(d => d.fecha === fecha);
   if (!reg) return;
+
+  _editingFecha = fecha;
 
   document.getElementById('inp-fecha').value    = reg.fecha;
   document.getElementById('inp-personas').value = reg.personas;
@@ -1077,21 +1186,59 @@ function editarDia(fecha) {
   (reg.prodDetalle || []).forEach(d => addRow(d.tipo, d.cable, d.metros));
   recalc();
 
+  // Mostrar banner y botón cancelar; cambiar texto del guardar
+  document.getElementById('edit-banner').style.display = 'block';
+  document.getElementById('edit-fecha-label').textContent = fmtFecha(fecha);
+  document.getElementById('btn-cancelar-edit').style.display = 'inline-flex';
+  document.getElementById('btn-guardar').innerHTML = '💾 GUARDAR CAMBIOS';
+
   const btn = document.querySelector('.nav-btn');
   goTab('entrada', btn);
-  toast('Cargado: ' + fmtFecha(fecha), 'inf');
+  toast('Editando: ' + fmtFecha(fecha), 'inf');
+}
+
+function cancelarEdicion() {
+  resetearFormulario();
+  toast('Edición cancelada', 'inf');
+}
+
+function resetearFormulario() {
+  _editingFecha = null;
+  // Volver al día de hoy con valores por defecto
+  document.getElementById('inp-fecha').value    = new Date().toISOString().slice(0,10);
+  document.getElementById('inp-personas').value = 1;
+  document.getElementById('inp-ida').value      = 30;
+  document.getElementById('inp-vuelta').value   = 30;
+  document.getElementById('inp-notas').value    = '';
+
+  // Reset filas de producción
+  document.getElementById('prod-body').innerHTML = '';
+  _rowId = 0;
+  addRow('Ra');
+  addRow('Malla');
+  recalc();
+
+  // Ocultar banner y botón cancelar
+  document.getElementById('edit-banner').style.display = 'none';
+  document.getElementById('btn-cancelar-edit').style.display = 'none';
+  document.getElementById('btn-guardar').innerHTML = '💾 GUARDAR DÍA';
 }
 
 // ════════════════════════════════════════════════════════════
 // ELIMINAR DÍA
 // ════════════════════════════════════════════════════════════
 function eliminarDia(fecha) {
-  modalConfirm('¿Eliminar el registro del ' + fmtFecha(fecha) + '? Esta acción no se puede deshacer.', ok => {
+  modalConfirm('¿Mover el registro del ' + fmtFecha(fecha) + ' a la papelera? Podrás recuperarlo durante 30 días.', async ok => {
     if (!ok) return;
-    saveData(loadData().filter(d => d.fecha !== fecha));
-    renderRegistro();
-    toast('Registro eliminado', 'ok');
-  });
+    if (_fbAuth?.currentUser && _teamId) {
+      await fbSoftDelete(fecha);
+      toast('Movido a papelera ✓', 'ok');
+    } else {
+      saveData(loadData().filter(d => d.fecha !== fecha));
+      renderRegistro();
+      toast('Registro eliminado (solo local)', 'ok');
+    }
+  }, { okText: 'A la papelera', okColor: 'btn-yellow' });
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1124,7 +1271,7 @@ function renderRegistro() {
   const data  = loadData().sort((a,b) => b.fecha.localeCompare(a.fecha));
   const tbody = document.getElementById('reg-body');
   if (!data.length) {
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2.5rem;color:var(--muted);">No hay registros todavía</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2.5rem;color:var(--muted);">No hay registros todavía</td></tr>`;
     return;
   }
   tbody.innerHTML = data.map(r => {
@@ -1134,6 +1281,7 @@ function renderRegistro() {
     return `<tr>
       <td style="font-family:var(--mono);white-space:nowrap;">${fmtFecha(r.fecha)}</td>
       <td style="font-family:var(--mono);text-align:center;">${r.personas}</td>
+      <td style="font-family:var(--mono);font-size:.78rem;white-space:nowrap;color:var(--muted);">${r.vIda||0}+${r.vVuelta||0}<span style="font-size:.7rem;"> min</span></td>
       <td>${det||'—'}</td>
       <td style="font-family:var(--mono);font-weight:700;">${r.metros}</td>
       <td style="font-family:var(--mono);">${r.objEq}</td>
@@ -1255,10 +1403,12 @@ function saveAjustes() {
     Malla: parseInt(document.getElementById('obj-Malla').value) || 160
   };
   localStorage.setItem(OBJ_KEY, JSON.stringify(obj));
-  // También en IndexedDB para persistencia total
   idbKVSet(OBJ_KEY, obj).catch(() => {});
   renderObjDisplay(obj);
   recalc();
+  if (_fbAuth?.currentUser && _teamId && (_myRole === 'admin' || _myRole === 'editor')) {
+    fbSaveAjustes(obj);
+  }
 }
 
 function renderObjDisplay(obj) {
@@ -1531,8 +1681,8 @@ function borrarTodo() {
       saveData([]);
       renderRegistro();
       toast('Todos los datos eliminados', 'err');
-    });
-  });
+    }, { okText: 'Sí, borrar todo', okColor: 'btn-red' });
+  }, { okText: 'Borrar todo', okColor: 'btn-red' });
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1567,37 +1717,37 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ════════════════════════════════════════════════════════════
-// FIREBASE SYNC — Auth + Firestore en tiempo real
+// FIREBASE v3.0 — Equipos compartidos, roles, audit, papelera
 // ════════════════════════════════════════════════════════════
 const FB_CONFIG_KEY  = 'firebaseConfig';
-const FB_COLLECTION  = 'fibracontrol';
+const APP_TYPE       = 'fibracontrol';
 let _fbApp  = null;
 let _fbAuth = null;
 let _fbDb   = null;
-let _fbUnsub = null;
 let _fbInitialized = false;
 let _fbSaveTimer = null;
-let _fbApplyingRemote = false;
+let _currentUser = null;
+let _teamId  = null;     // equipo activo
+let _teamData = null;    // metadatos del equipo activo
+let _myTeams  = [];      // todos los equipos del usuario
+let _myRole   = null;    // mi rol en el equipo activo
+let _trashRegistros = [];
+let _auditEntries = [];
+let _registroDocs = {};  // mapa fecha → _id (para edición)
+let _unsubTeam = null, _unsubReg = null, _unsubSettings = null, _unsubAudit = null;
 
+// ─── Configuración ───
 async function loadFbConfig() {
   let cfg = await idbKVGet(FB_CONFIG_KEY).catch(() => null);
-  if (!cfg) {
-    try { cfg = JSON.parse(localStorage.getItem(FB_CONFIG_KEY)); }
-    catch { cfg = null; }
-  }
+  if (!cfg) { try { cfg = JSON.parse(localStorage.getItem(FB_CONFIG_KEY)); } catch { cfg = null; } }
   return cfg;
 }
 
 function parseFbConfig(text) {
-  // Acepta JSON puro, objeto JS, o snippet completo "const firebaseConfig = {...};"
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) throw new Error('No se encontró el objeto de configuración');
-  let cleaned = match[0]
-    .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?\s*:/g, '"$2":')  // comillas a las claves
-    .replace(/'([^']*)'/g, '"$1"')                                 // comillas simples a dobles
-    .replace(/,\s*\}/g, '}')                                     // coma final
-    .replace(/,\s*\]/g, ']');
-  return JSON.parse(cleaned);
+  try { return (new Function('return ' + match[0]))(); }
+  catch(e) { throw new Error('Sintaxis inválida: ' + e.message); }
 }
 
 async function saveFirebaseConfig() {
@@ -1606,52 +1756,40 @@ async function saveFirebaseConfig() {
   let cfg;
   try { cfg = parseFbConfig(txt); }
   catch(e) { toast('Configuración inválida: ' + e.message, 'err'); return; }
-
-  if (!cfg.apiKey || !cfg.projectId) {
-    toast('La configuración no es válida (faltan apiKey o projectId)', 'err');
-    return;
-  }
-
+  if (!cfg.apiKey || !cfg.projectId) { toast('Configuración incompleta', 'err'); return; }
   localStorage.setItem(FB_CONFIG_KEY, JSON.stringify(cfg));
   await idbKVSet(FB_CONFIG_KEY, cfg).catch(() => {});
   toast('Configuración guardada ✓', 'ok');
-
-  try {
-    await initFirebase(cfg);
-    updateFirebaseUI();
-  } catch(e) {
-    toast('Error inicializando: ' + e.message, 'err');
-  }
+  try { await initFirebase(cfg); updateFirebaseUI(); }
+  catch(e) { toast('Error: ' + e.message, 'err'); }
 }
 
 async function initFirebase(config) {
   if (_fbInitialized) return;
   if (!window.firebase) throw new Error('Firebase SDK no cargado');
-
   _fbApp  = firebase.initializeApp(config);
   _fbAuth = firebase.auth();
   _fbDb   = firebase.firestore();
-
-  // Persistencia offline
-  try {
-    await _fbDb.enablePersistence({ synchronizeTabs: true });
-  } catch(e) {
-    console.warn('Firestore persistence:', e.code);
-  }
-
-  // Persistencia de sesión (queda guardada para siempre)
+  try { await _fbDb.enablePersistence({ synchronizeTabs: true }); } catch(e) {}
   await _fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-
-  // Listener de cambios de autenticación
   _fbAuth.onAuthStateChanged(handleFbAuthChange);
   _fbInitialized = true;
 }
 
-function handleFbAuthChange(user) {
+async function handleFbAuthChange(user) {
   if (user) {
-    startFbDataSync(user.uid);
+    _currentUser = user;
+    await fbInitForUser(user);
   } else {
-    if (_fbUnsub) { _fbUnsub(); _fbUnsub = null; }
+    _currentUser = null;
+    _teamId = null;
+    _teamData = null;
+    _myTeams = [];
+    _myRole = null;
+    if (_unsubTeam) { _unsubTeam(); _unsubTeam = null; }
+    if (_unsubReg)  { _unsubReg();  _unsubReg = null; }
+    if (_unsubSettings) { _unsubSettings(); _unsubSettings = null; }
+    if (_unsubAudit) { _unsubAudit(); _unsubAudit = null; }
   }
   updateFirebaseUI();
 }
@@ -1662,17 +1800,13 @@ async function firebaseSignIn() {
     const provider = new firebase.auth.GoogleAuthProvider();
     await _fbAuth.signInWithPopup(provider);
     toast('Sesión iniciada ✓', 'ok');
-  } catch(e) {
-    toast('Error: ' + (e.message || e.code), 'err');
-  }
+  } catch(e) { toast('Error: ' + (e.message || e.code), 'err'); }
 }
 
 async function firebaseSignOut() {
   if (!_fbAuth) return;
-  try {
-    await _fbAuth.signOut();
-    toast('Sesión cerrada', 'ok');
-  } catch(e) { toast('Error: ' + e.message, 'err'); }
+  try { await _fbAuth.signOut(); toast('Sesión cerrada', 'ok'); }
+  catch(e) { toast('Error: ' + e.message, 'err'); }
 }
 
 function firebaseResetConfig() {
@@ -1685,124 +1819,538 @@ function firebaseResetConfig() {
     _fbApp = null; _fbAuth = null; _fbDb = null;
     updateFirebaseUI();
     document.getElementById('fb-config-input').value = '';
+  }, { okText: 'Cambiar', okColor: 'btn-yellow' });
+}
+
+// ═══════════════════════════════════════════════
+// EQUIPOS Y MIGRACIÓN
+// ═══════════════════════════════════════════════
+async function fbInitForUser(user) {
+  try {
+    const teams = await findMyTeams();
+    if (teams.length === 0 || !teams.find(t => t.id === user.uid)) {
+      await createOwnTeam(user);
+    }
+    const allTeams = await findMyTeams();
+    _myTeams = allTeams;
+    const last = localStorage.getItem('lastTeamId');
+    _teamId = (last && allTeams.find(t => t.id === last && t.isMember)) ? last : user.uid;
+    await tryMigrateV2(user);
+    subscribeToTeam(_teamId);
+  } catch(e) {
+    console.error('fbInitForUser error:', e);
+    toast('Error: ' + e.message, 'err');
+  }
+}
+
+async function findMyTeams() {
+  if (!_currentUser || !_fbDb) return [];
+  const teams = [];
+  const seen = new Set();
+  try {
+    const memberSnap = await _fbDb.collection('teams')
+      .where('memberUids', 'array-contains', _currentUser.uid)
+      .where('appType', '==', APP_TYPE).get();
+    memberSnap.forEach(d => {
+      teams.push({ id: d.id, ...d.data(), isMember: true });
+      seen.add(d.id);
+    });
+  } catch(e) { console.warn('member query:', e); }
+  try {
+    const inviteSnap = await _fbDb.collection('teams')
+      .where('invitedEmails', 'array-contains', _currentUser.email.toLowerCase())
+      .where('appType', '==', APP_TYPE).get();
+    inviteSnap.forEach(d => {
+      if (!seen.has(d.id)) teams.push({ id: d.id, ...d.data(), isInvited: true });
+    });
+  } catch(e) { console.warn('invite query:', e); }
+  return teams;
+}
+
+async function createOwnTeam(user) {
+  await _fbDb.collection('teams').doc(user.uid).set({
+    ownerUid: user.uid,
+    ownerEmail: user.email,
+    name: 'Mi equipo',
+    appType: APP_TYPE,
+    members: { [user.uid]: { email: user.email, role: 'admin', joinedAt: firebase.firestore.FieldValue.serverTimestamp() } },
+    memberUids: [user.uid],
+    invitedEmails: [],
+    emailRoles: {},
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    schemaVersion: 3
   });
 }
 
-function startFbDataSync(uid) {
-  if (_fbUnsub) _fbUnsub();
-  _fbUnsub = _fbDb.collection(FB_COLLECTION).doc(uid).onSnapshot(
-    async doc => {
-      if (!doc.exists) {
-        // Primera vez: subir datos locales si hay
-        if ((_dataCache || []).length > 0 || Object.keys(loadObj()).length > 0) {
-          await pushToFirestore();
-        }
-        return;
-      }
-      // Evitar procesar nuestras propias escrituras pendientes
-      if (doc.metadata.hasPendingWrites) return;
-
-      const data = doc.data();
-      let changed = false;
-
-      // Actualizar registros si difieren
-      if (Array.isArray(data.registros)) {
-        const remoteJson = JSON.stringify(data.registros);
-        const localJson  = JSON.stringify(_dataCache || []);
-        if (remoteJson !== localJson) {
-          _fbApplyingRemote = true;
-          _dataCache = data.registros;
-          idbSaveAll(data.registros).catch(() => {});
-          try { localStorage.setItem(STORE, JSON.stringify(data.registros)); } catch {}
-          _fbApplyingRemote = false;
-          changed = true;
-        }
-      }
-
-      // Actualizar ajustes
-      if (data.ajustes && typeof data.ajustes === 'object') {
-        const remoteAj = JSON.stringify(data.ajustes);
-        const localAj  = localStorage.getItem(OBJ_KEY);
-        if (remoteAj !== localAj) {
-          _fbApplyingRemote = true;
-          localStorage.setItem(OBJ_KEY, remoteAj);
-          idbKVSet(OBJ_KEY, data.ajustes).catch(() => {});
-          loadAjustes();
-          _fbApplyingRemote = false;
-          changed = true;
-        }
-      }
-
-      if (changed) {
-        renderRegistro();
-        renderResumen();
-        recalc();
-        updateFirebaseSyncTime();
-      } else {
-        updateFirebaseSyncTime();
-      }
-    },
-    err => console.error('Firestore sync error:', err)
-  );
-}
-
-async function pushToFirestore() {
-  if (_fbApplyingRemote) return;
-  if (!_fbAuth?.currentUser || !_fbDb) return;
-  clearTimeout(_fbSaveTimer);
-  _fbSaveTimer = setTimeout(async () => {
-    try {
-      await _fbDb.collection(FB_COLLECTION).doc(_fbAuth.currentUser.uid).set({
-        registros: _dataCache || [],
-        ajustes:   loadObj(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
-      updateFirebaseSyncTime();
-    } catch(e) {
-      console.error('Firestore push error:', e);
+async function tryMigrateV2(user) {
+  const oldRef = _fbDb.collection('fibracontrol').doc(user.uid);
+  let oldDoc;
+  try { oldDoc = await oldRef.get(); } catch(e) { return; }
+  if (!oldDoc.exists) return;
+  const oldData = oldDoc.data();
+  if (oldData.migratedV3) return;
+  const newRegSnap = await _fbDb.collection('teams').doc(user.uid).collection('registros').limit(1).get();
+  if (!newRegSnap.empty) { await oldRef.update({ migratedV3: true }); return; }
+  if (Array.isArray(oldData.registros) && oldData.registros.length > 0) {
+    const now = firebase.firestore.FieldValue.serverTimestamp();
+    for (const r of oldData.registros) {
+      await _fbDb.collection('teams').doc(user.uid).collection('registros').add({
+        ...r, createdBy: user.uid, createdByEmail: user.email, createdAt: now,
+        modifiedBy: user.uid, modifiedByEmail: user.email, modifiedAt: now,
+        deleted: false
+      });
     }
-  }, 400);
+  }
+  if (oldData.ajustes) {
+    await _fbDb.collection('teams').doc(user.uid).collection('settings').doc('main').set({
+      ajustes: oldData.ajustes,
+      modifiedBy: user.uid, modifiedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+  await oldRef.update({ migratedV3: true });
+  toast('Datos migrados a v3.0 ✓', 'ok');
+  await logAudit('migrate_v2', { count: oldData.registros?.length || 0 });
 }
 
-// Compatibilidad: la función que se llamaba desde guardarDia
-function driveAutoSync() { pushToFirestore(); }
+function subscribeToTeam(teamId) {
+  if (_unsubTeam) _unsubTeam();
+  if (_unsubReg) _unsubReg();
+  if (_unsubSettings) _unsubSettings();
+  if (_unsubAudit) _unsubAudit();
+  _teamId = teamId;
+  localStorage.setItem('lastTeamId', teamId);
 
+  _unsubTeam = _fbDb.collection('teams').doc(teamId).onSnapshot(doc => {
+    if (!doc.exists) return;
+    _teamData = { id: doc.id, ...doc.data() };
+    _myRole = _teamData.members?.[_currentUser.uid]?.role || null;
+    updateFirebaseUI();
+    renderTeamMembers();
+    applyRoleRestrictions();
+  });
+
+  _unsubReg = _fbDb.collection('teams').doc(teamId).collection('registros').onSnapshot(snap => {
+    const active = [], trash = [];
+    _registroDocs = {};
+    snap.docs.forEach(d => {
+      const r = { _id: d.id, ...d.data() };
+      if (r.deleted) trash.push(r);
+      else { active.push(r); _registroDocs[r.fecha] = d.id; }
+    });
+    _dataCache = active;
+    _trashRegistros = trash;
+    idbSaveAll(active).catch(() => {});
+    try { localStorage.setItem(STORE, JSON.stringify(active)); } catch {}
+    renderRegistro();
+    renderResumen();
+    recalc();
+    renderTrash();
+  });
+
+  _unsubSettings = _fbDb.collection('teams').doc(teamId).collection('settings').doc('main').onSnapshot(doc => {
+    if (!doc.exists) return;
+    const data = doc.data();
+    if (data.ajustes) {
+      localStorage.setItem(OBJ_KEY, JSON.stringify(data.ajustes));
+      loadAjustes();
+      recalc();
+    }
+  });
+
+  _unsubAudit = _fbDb.collection('teams').doc(teamId).collection('audit')
+    .orderBy('timestamp', 'desc').limit(100).onSnapshot(snap => {
+    _auditEntries = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+    renderAuditLog();
+  });
+}
+
+// ═══════════════════════════════════════════════
+// CRUD CON AUDIT
+// ═══════════════════════════════════════════════
+async function fbSaveRegistro(registro) {
+  if (!_currentUser || !_fbDb || !_teamId) return false;
+  const existingId = _registroDocs[registro.fecha];
+  const now = firebase.firestore.FieldValue.serverTimestamp();
+  const data = {
+    ...registro,
+    modifiedBy: _currentUser.uid,
+    modifiedByEmail: _currentUser.email,
+    modifiedAt: now,
+    deleted: false
+  };
+  try {
+    if (existingId) {
+      await _fbDb.collection('teams').doc(_teamId).collection('registros').doc(existingId).update(data);
+      await logAudit('update', { fecha: registro.fecha, registroId: existingId });
+    } else {
+      data.createdBy = _currentUser.uid;
+      data.createdByEmail = _currentUser.email;
+      data.createdAt = now;
+      const ref = await _fbDb.collection('teams').doc(_teamId).collection('registros').add(data);
+      await logAudit('create', { fecha: registro.fecha, registroId: ref.id });
+    }
+    return true;
+  } catch(e) {
+    toast('Sin permisos para esta acción', 'err');
+    return false;
+  }
+}
+
+async function fbSoftDelete(fecha) {
+  const id = _registroDocs[fecha];
+  if (!id) return;
+  try {
+    const autoPurge = new Date(Date.now() + 30*86400000);
+    await _fbDb.collection('teams').doc(_teamId).collection('registros').doc(id).update({
+      deleted: true,
+      deletedBy: _currentUser.uid,
+      deletedByEmail: _currentUser.email,
+      deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      autoPurgeAt: firebase.firestore.Timestamp.fromDate(autoPurge)
+    });
+    await logAudit('delete', { fecha, registroId: id });
+  } catch(e) { toast('Sin permisos', 'err'); }
+}
+
+async function fbRestore(registroId) {
+  try {
+    const reg = _trashRegistros.find(r => r._id === registroId);
+    await _fbDb.collection('teams').doc(_teamId).collection('registros').doc(registroId).update({
+      deleted: false, deletedBy: null, deletedByEmail: null, deletedAt: null, autoPurgeAt: null
+    });
+    await logAudit('restore', { fecha: reg?.fecha, registroId });
+  } catch(e) { toast('Sin permisos', 'err'); }
+}
+
+async function fbPurge(registroId) {
+  try {
+    const reg = _trashRegistros.find(r => r._id === registroId);
+    await _fbDb.collection('teams').doc(_teamId).collection('registros').doc(registroId).delete();
+    await logAudit('purge', { fecha: reg?.fecha, registroId });
+  } catch(e) { toast('Sin permisos para borrar definitivamente', 'err'); }
+}
+
+async function fbSaveAjustes(ajustes) {
+  if (!_currentUser || !_fbDb || !_teamId) return;
+  try {
+    await _fbDb.collection('teams').doc(_teamId).collection('settings').doc('main').set({
+      ajustes,
+      modifiedBy: _currentUser.uid,
+      modifiedByEmail: _currentUser.email,
+      modifiedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    await logAudit('settings_change', { ajustes });
+  } catch(e) {}
+}
+
+async function logAudit(action, details = {}) {
+  if (!_currentUser || !_teamId) return;
+  try {
+    await _fbDb.collection('teams').doc(_teamId).collection('audit').add({
+      action,
+      actorUid: _currentUser.uid,
+      actorEmail: _currentUser.email,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      ...details
+    });
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════
+// GESTIÓN DE MIEMBROS
+// ═══════════════════════════════════════════════
+function emailKey(email) { return email.replace(/\./g, ',').toLowerCase(); }
+
+async function fbInviteMember() {
+  if (_myRole !== 'admin') { toast('Solo el administrador puede invitar', 'err'); return; }
+  const email = document.getElementById('inv-email').value.trim().toLowerCase();
+  const role  = document.getElementById('inv-role').value;
+  if (!email || !email.includes('@')) { toast('Email inválido', 'err'); return; }
+  try {
+    await _fbDb.collection('teams').doc(_teamId).update({
+      invitedEmails: firebase.firestore.FieldValue.arrayUnion(email),
+      [`emailRoles.${emailKey(email)}`]: role
+    });
+    await logAudit('member_invite', { targetEmail: email, role });
+    document.getElementById('inv-email').value = '';
+    toast('Invitación enviada a ' + email, 'ok');
+  } catch(e) { toast('Error: ' + e.message, 'err'); }
+}
+
+async function fbCancelInvite(email) {
+  try {
+    await _fbDb.collection('teams').doc(_teamId).update({
+      invitedEmails: firebase.firestore.FieldValue.arrayRemove(email),
+      [`emailRoles.${emailKey(email)}`]: firebase.firestore.FieldValue.delete()
+    });
+    toast('Invitación cancelada', 'ok');
+  } catch(e) { toast('Error: ' + e.message, 'err'); }
+}
+
+async function fbChangeRole(uid, newRole) {
+  if (uid === _teamData.ownerUid) { toast('El propietario no puede cambiar de rol', 'err'); return; }
+  try {
+    await _fbDb.collection('teams').doc(_teamId).update({
+      [`members.${uid}.role`]: newRole
+    });
+    await logAudit('member_role_change', { targetUid: uid, role: newRole });
+    toast('Rol actualizado', 'ok');
+  } catch(e) { toast('Error: ' + e.message, 'err'); }
+}
+
+async function fbRemoveMember(uid) {
+  if (uid === _teamData.ownerUid) { toast('No se puede eliminar al propietario', 'err'); return; }
+  const member = _teamData.members[uid];
+  modalConfirm('¿Eliminar a ' + (member?.email || 'este miembro') + ' del equipo?', async ok => {
+    if (!ok) return;
+    try {
+      await _fbDb.collection('teams').doc(_teamId).update({
+        [`members.${uid}`]: firebase.firestore.FieldValue.delete(),
+        memberUids: firebase.firestore.FieldValue.arrayRemove(uid)
+      });
+      await logAudit('member_remove', { targetUid: uid, targetEmail: member?.email });
+      toast('Miembro eliminado', 'ok');
+    } catch(e) { toast('Error: ' + e.message, 'err'); }
+  }, { okText: 'Eliminar', okColor: 'btn-red' });
+}
+
+async function acceptInvitation(teamId) {
+  const teamRef = _fbDb.collection('teams').doc(teamId);
+  const doc = await teamRef.get();
+  if (!doc.exists) return;
+  const data = doc.data();
+  const email = _currentUser.email.toLowerCase();
+  const role = data.emailRoles?.[emailKey(email)] || 'viewer';
+  try {
+    await teamRef.update({
+      [`members.${_currentUser.uid}`]: { email: _currentUser.email, role, joinedAt: firebase.firestore.FieldValue.serverTimestamp() },
+      memberUids: firebase.firestore.FieldValue.arrayUnion(_currentUser.uid),
+      invitedEmails: firebase.firestore.FieldValue.arrayRemove(email),
+      [`emailRoles.${emailKey(email)}`]: firebase.firestore.FieldValue.delete()
+    });
+    await logAudit('member_join', {});
+    toast('Te has unido al equipo ✓', 'ok');
+    await fbInitForUser(_currentUser);
+  } catch(e) { toast('Error: ' + e.message, 'err'); }
+}
+
+async function switchTeam(teamId) {
+  if (teamId === _teamId) return;
+  localStorage.setItem('lastTeamId', teamId);
+  subscribeToTeam(teamId);
+}
+
+// ═══════════════════════════════════════════════
+// UI
+// ═══════════════════════════════════════════════
 function updateFirebaseUI() {
   const setup  = document.getElementById('fb-state-setup');
   const signin = document.getElementById('fb-state-signin');
   const active = document.getElementById('fb-state-active');
+  const teamMgmt = document.getElementById('team-mgmt-card');
+  const trashCard = document.getElementById('trash-card');
+  const auditCard = document.getElementById('audit-card');
   if (!setup) return;
-
+  const isSignedIn = !!_fbAuth?.currentUser;
   if (!_fbInitialized) {
-    setup.style.display  = 'block';
-    signin.style.display = 'none';
-    active.style.display = 'none';
-  } else if (!_fbAuth?.currentUser) {
-    setup.style.display  = 'none';
-    signin.style.display = 'block';
-    active.style.display = 'none';
+    setup.style.display = 'block'; signin.style.display = 'none'; active.style.display = 'none';
+  } else if (!isSignedIn) {
+    setup.style.display = 'none'; signin.style.display = 'block'; active.style.display = 'none';
   } else {
-    setup.style.display  = 'none';
-    signin.style.display = 'none';
-    active.style.display = 'block';
+    setup.style.display = 'none'; signin.style.display = 'none'; active.style.display = 'block';
     const u = _fbAuth.currentUser;
     document.getElementById('fb-user-email').textContent = u.email || u.displayName || u.uid;
+    const roleLabel = { admin: '👑 Admin', editor: '✏ Editor', 'editor-own': '✏ Editor solo propios', viewer: '👁 Solo ver' }[_myRole] || '—';
+    const roleEl = document.getElementById('fb-my-role');
+    if (roleEl) roleEl.textContent = roleLabel;
+  }
+  // Mostrar/ocultar tarjetas de equipo según estado
+  if (teamMgmt)  teamMgmt.style.display  = isSignedIn ? 'block' : 'none';
+  if (trashCard) trashCard.style.display = isSignedIn ? 'block' : 'none';
+  if (auditCard) auditCard.style.display = isSignedIn ? 'block' : 'none';
+}
+
+function renderTeamMembers() {
+  const wrap = document.getElementById('team-members-list');
+  if (!wrap || !_teamData) return;
+  const isAdmin = _myRole === 'admin';
+  const members = Object.entries(_teamData.members || {});
+  const invited = _teamData.invitedEmails || [];
+  const emailRoles = _teamData.emailRoles || {};
+  let html = '';
+  members.forEach(([uid, m]) => {
+    const isOwner = uid === _teamData.ownerUid;
+    const isSelf  = uid === _currentUser.uid;
+    const roleLbl = { admin: '👑 Admin', editor: '✏ Editor', 'editor-own': '✏ Solo propios', viewer: '👁 Solo ver' }[m.role] || m.role;
+    html += `<div style="display:flex;align-items:center;gap:.6rem;padding:.55rem .75rem;background:var(--bg);border-radius:.5rem;margin-bottom:.4rem;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:.85rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;">${m.email}${isOwner?' <span style="font-size:.7rem;color:var(--yellow);">(propietario)</span>':''}${isSelf?' <span style="font-size:.7rem;color:var(--blue);">(tú)</span>':''}</div>
+        <div style="font-size:.75rem;color:var(--muted);">${roleLbl}</div>
+      </div>`;
+    if (isAdmin && !isOwner) {
+      html += `<select onchange="fbChangeRole('${uid}', this.value)" style="font-size:.75rem;padding:.25rem .4rem;min-width:0;width:auto;">
+        <option value="admin"${m.role==='admin'?' selected':''}>Admin</option>
+        <option value="editor"${m.role==='editor'?' selected':''}>Editor</option>
+        <option value="editor-own"${m.role==='editor-own'?' selected':''}>Solo propios</option>
+        <option value="viewer"${m.role==='viewer'?' selected':''}>Solo ver</option>
+      </select>
+      <button class="btn btn-sm" style="background:rgba(239,68,68,.15);color:var(--red);" onclick="fbRemoveMember('${uid}')" title="Eliminar">✕</button>`;
+    }
+    html += `</div>`;
+  });
+  if (invited.length > 0) {
+    html += '<div style="font-size:.75rem;color:var(--muted);margin:.75rem 0 .4rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Invitaciones pendientes</div>';
+    invited.forEach(email => {
+      const role = emailRoles[emailKey(email)] || 'viewer';
+      const roleLbl = { admin: '👑 Admin', editor: '✏ Editor', 'editor-own': '✏ Solo propios', viewer: '👁 Solo ver' }[role] || role;
+      html += `<div style="display:flex;align-items:center;gap:.6rem;padding:.55rem .75rem;background:rgba(245,158,11,.06);border:1px dashed rgba(245,158,11,.3);border-radius:.5rem;margin-bottom:.4rem;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.85rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;color:var(--yellow);">⏳ ${email}</div>
+          <div style="font-size:.75rem;color:var(--muted);">${roleLbl} — pendiente de aceptar</div>
+        </div>`;
+      if (isAdmin) html += `<button class="btn btn-sm btn-ghost" onclick="fbCancelInvite('${email}')" title="Cancelar">✕</button>`;
+      html += `</div>`;
+    });
+  }
+  wrap.innerHTML = html || '<div style="color:var(--muted);font-size:.85rem;padding:1rem;text-align:center;">Sin miembros aún</div>';
+
+  // Mostrar/ocultar zona de invitación
+  const inviteBox = document.getElementById('invite-box');
+  if (inviteBox) inviteBox.style.display = isAdmin ? 'block' : 'none';
+
+  // Selector de equipo si hay más de uno
+  renderTeamSelector();
+}
+
+function renderTeamSelector() {
+  const sel = document.getElementById('team-selector');
+  if (!sel) return;
+  const teamsToShow = _myTeams.filter(t => t.isMember);
+  if (teamsToShow.length <= 1) { sel.style.display = 'none'; return; }
+  sel.style.display = 'block';
+  const dd = document.getElementById('team-selector-dd');
+  dd.innerHTML = teamsToShow.map(t => `<option value="${t.id}"${t.id===_teamId?' selected':''}>${t.name}${t.id===_currentUser.uid?' (mío)':''}</option>`).join('');
+
+  // Mostrar invitaciones pendientes
+  const pending = _myTeams.filter(t => t.isInvited);
+  const pendBox = document.getElementById('pending-invites');
+  if (pendBox) {
+    if (pending.length === 0) pendBox.style.display = 'none';
+    else {
+      pendBox.style.display = 'block';
+      pendBox.innerHTML = pending.map(t => `<div style="display:flex;align-items:center;gap:.5rem;padding:.5rem .75rem;background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.3);border-radius:.5rem;margin-bottom:.5rem;">
+        <div style="flex:1;font-size:.85rem;">Invitación a <strong>${t.name}</strong></div>
+        <button class="btn btn-blue btn-sm" onclick="acceptInvitation('${t.id}')">Aceptar</button>
+      </div>`).join('');
+    }
   }
 }
 
-function updateFirebaseSyncTime() {
-  const el = document.getElementById('fb-last-sync');
-  if (el) el.textContent = 'Último sync: ' + new Date().toLocaleString('es');
+function renderTrash() {
+  const wrap = document.getElementById('trash-list');
+  if (!wrap) return;
+  if (_trashRegistros.length === 0) {
+    wrap.innerHTML = '<div style="color:var(--muted);font-size:.85rem;padding:1rem;text-align:center;">Papelera vacía</div>';
+    return;
+  }
+  const sorted = [..._trashRegistros].sort((a,b) => (b.deletedAt?.seconds || 0) - (a.deletedAt?.seconds || 0));
+  wrap.innerHTML = sorted.map(r => {
+    const delDate = r.deletedAt?.toDate ? r.deletedAt.toDate().toLocaleString('es') : '—';
+    const purgeDate = r.autoPurgeAt?.toDate ? r.autoPurgeAt.toDate().toLocaleDateString('es') : '—';
+    return `<div style="display:flex;align-items:center;gap:.6rem;padding:.6rem .85rem;background:var(--bg);border:1px solid var(--border);border-radius:.5rem;margin-bottom:.4rem;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:.85rem;font-weight:600;font-family:var(--mono);">${fmtFecha(r.fecha)} — ${r.metros||0} m</div>
+        <div style="font-size:.7rem;color:var(--muted);">Borrado: ${delDate} por ${r.deletedByEmail || '?'}</div>
+        <div style="font-size:.7rem;color:var(--red);">Se eliminará el ${purgeDate}</div>
+      </div>
+      <button class="btn btn-green btn-sm" onclick="fbRestore('${r._id}')" title="Recuperar">↺</button>
+      ${_myRole === 'admin' ? `<button class="btn btn-sm" style="background:rgba(239,68,68,.15);color:var(--red);" onclick="confirmPurge('${r._id}')" title="Borrar definitivo">✕</button>` : ''}
+    </div>`;
+  }).join('');
 }
 
-// Inicialización al cargar
+function confirmPurge(id) {
+  modalConfirm('¿Borrar definitivamente este registro? No se podrá recuperar.', ok => {
+    if (ok) fbPurge(id);
+  }, { okText: 'Borrar definitivo', okColor: 'btn-red' });
+}
+
+function renderAuditLog() {
+  const wrap = document.getElementById('audit-list');
+  if (!wrap) return;
+  if (_auditEntries.length === 0) {
+    wrap.innerHTML = '<div style="color:var(--muted);font-size:.85rem;padding:1rem;text-align:center;">Sin actividad registrada</div>';
+    return;
+  }
+  const actionLabels = {
+    create:    { icon: '➕', text: 'Creó día', color: 'var(--green)' },
+    update:    { icon: '✏️', text: 'Modificó día', color: 'var(--blue)' },
+    delete:    { icon: '🗑', text: 'Borró día', color: 'var(--red)' },
+    restore:   { icon: '↺', text: 'Restauró día', color: 'var(--green)' },
+    purge:     { icon: '✕', text: 'Borró definitivamente', color: 'var(--red)' },
+    settings_change:    { icon: '⚙', text: 'Cambió ajustes', color: 'var(--muted)' },
+    member_invite:      { icon: '✉', text: 'Invitó a', color: 'var(--yellow)' },
+    member_remove:      { icon: '👤✕', text: 'Eliminó miembro', color: 'var(--red)' },
+    member_role_change: { icon: '🔄', text: 'Cambió rol', color: 'var(--blue)' },
+    member_join:        { icon: '✓', text: 'Se unió al equipo', color: 'var(--green)' },
+    migrate_v2:         { icon: '⬆', text: 'Migró datos a v3.0', color: 'var(--yellow)' }
+  };
+  wrap.innerHTML = _auditEntries.slice(0, 50).map(e => {
+    const lbl = actionLabels[e.action] || { icon: '?', text: e.action, color: 'var(--muted)' };
+    const date = e.timestamp?.toDate ? e.timestamp.toDate().toLocaleString('es') : '—';
+    let target = '';
+    if (e.fecha)        target = ` — ${fmtFecha(e.fecha)}`;
+    else if (e.targetEmail) target = ` — ${e.targetEmail}`;
+    return `<div style="display:flex;align-items:flex-start;gap:.6rem;padding:.5rem .75rem;border-bottom:1px solid var(--border);font-size:.82rem;">
+      <span style="font-size:1.05rem;line-height:1;">${lbl.icon}</span>
+      <div style="flex:1;min-width:0;">
+        <div style="color:${lbl.color};font-weight:600;">${lbl.text}${target}</div>
+        <div style="font-size:.72rem;color:var(--muted);font-family:var(--mono);">${e.actorEmail} · ${date}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+// RESTRICCIONES DE ROL EN UI
+// ═══════════════════════════════════════════════
+function applyRoleRestrictions() {
+  const canEdit = _myRole === 'admin' || _myRole === 'editor' || _myRole === 'editor-own';
+  const isViewer = _myRole === 'viewer';
+
+  // Botón guardar
+  const btnSave = document.getElementById('btn-guardar');
+  if (btnSave) btnSave.style.display = canEdit ? '' : 'none';
+
+  // Banner solo lectura
+  let banner = document.getElementById('readonly-banner');
+  if (isViewer && !banner) {
+    banner = document.createElement('div');
+    banner.id = 'readonly-banner';
+    banner.style.cssText = 'background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:.5rem;padding:.6rem 1rem;margin-bottom:1rem;font-size:.85rem;color:var(--yellow);text-align:center;';
+    banner.innerHTML = '👁 Estás en modo <strong>solo lectura</strong> en este equipo';
+    const entrada = document.getElementById('tab-entrada');
+    if (entrada) entrada.insertBefore(banner, entrada.firstChild);
+  } else if (!isViewer && banner) banner.remove();
+}
+
 async function firebaseAutoInit() {
   const cfg = await loadFbConfig();
-  if (cfg) {
-    try { await initFirebase(cfg); } catch(e) { console.error(e); }
-  }
+  if (cfg) { try { await initFirebase(cfg); } catch(e) { console.error(e); } }
   updateFirebaseUI();
 }
+
+// ═══════════════════════════════════════════════
+// AYUDA
+// ═══════════════════════════════════════════════
+function showHelp() {
+  document.getElementById('help-modal').style.display = 'flex';
+}
+function closeHelp() {
+  document.getElementById('help-modal').style.display = 'none';
+}
+
+// Redraw chart on resize
 
 // Redraw chart on resize// Redraw chart on resize
 let _resizeT;
