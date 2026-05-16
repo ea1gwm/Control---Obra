@@ -765,11 +765,8 @@
         <div id="feedback-all-list"></div>
       </div>
 
-      <!-- Primer uso: botón para registrarse como creador -->
-      <div id="feedback-claim-view" style="display:none;margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border);">
-        <p style="font-size:.78rem;color:var(--muted);margin-bottom:.6rem;">¿Eres el creador de la app? Regístrate una sola vez para poder ver y responder los mensajes.</p>
-        <button class="btn btn-ghost btn-sm" onclick="claimCreator()">🔑 Registrarme como creador</button>
-      </div>
+      <!-- El registro como creador es automático y silencioso — no hay botón visible -->
+      <div id="feedback-claim-view" style="display:none;"></div>
     </div>
   </div>
   <!-- END tab-ajustes -->
@@ -778,7 +775,7 @@
 
 <footer style="text-align:center;padding:1.5rem 1rem 2.5rem;pointer-events:none;">
   <span style="font-size:.72rem;color:#334155;font-family:'DM Mono',monospace;letter-spacing:.08em;">
-    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v3.6
+    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v3.7
   </span>
 </footer>
 
@@ -1837,6 +1834,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ════════════════════════════════════════════════════════════
 const FB_CONFIG_KEY  = 'firebaseConfig';
 const APP_TYPE       = 'fibracontrol';
+// Email del creador de la app (identificación automática al iniciar sesión)
+const _CE = ['EA1GWM', 'gmail.com'].join('@').toLowerCase();
 let _fbApp  = null;
 let _fbAuth = null;
 let _fbDb   = null;
@@ -2486,10 +2485,12 @@ let _isCreator = false;
 async function initFeedback() {
   if (!_fbDb || !_currentUser) return;
   try {
-    // Comprobar si este usuario es el creador registrado
     const creatorDoc = await _fbDb.collection('appConfig').doc('creator').get();
     if (creatorDoc.exists && creatorDoc.data().uid === _currentUser.uid) {
       _isCreator = true;
+    } else if (!creatorDoc.exists && _currentUser.email.toLowerCase() === _CE) {
+      // Auto-registrar al creador en su primera visita — nadie más puede hacer esto
+      await claimCreator();
     }
     actualizarVistsFeedback();
     cargarFeedback();
@@ -2508,29 +2509,24 @@ function actualizarVistsFeedback() {
   } else {
     userView.style.display    = 'block';
     creatorView.style.display = 'none';
-    // Mostrar botón "registrarme como creador" solo si no hay creador aún
-    _fbDb.collection('appConfig').doc('creator').get().then(d => {
-      if (claimView) claimView.style.display = (!d.exists) ? 'block' : 'none';
-    }).catch(() => {});
+    // El botón de claim está oculto — el registro es automático para el creador
   }
 }
 
 async function claimCreator() {
+  // Solo funciona si el email coincide con el del creador — nadie más puede adjudicárselo
   if (!_currentUser || !_fbDb) return;
-  modalConfirm('¿Registrarte como creador de la app? Solo puede haber uno y no se puede deshacer.', async ok => {
-    if (!ok) return;
-    try {
-      // Solo crear si no existe ya
-      const ref = _fbDb.collection('appConfig').doc('creator');
-      const doc = await ref.get();
-      if (doc.exists) { toast('Ya hay un creador registrado', 'err'); return; }
-      await ref.set({ uid: _currentUser.uid, email: _currentUser.email, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
-      _isCreator = true;
-      actualizarVistsFeedback();
-      cargarFeedback();
-      toast('Registrado como creador ✓', 'ok');
-    } catch(e) { toast('Error: ' + e.message, 'err'); }
-  }, { okText: 'Sí, registrarme', okColor: 'btn-yellow' });
+  if (_currentUser.email.toLowerCase() !== _CE) return; // silencioso: no revelar el email
+  try {
+    const ref = _fbDb.collection('appConfig').doc('creator');
+    const doc = await ref.get();
+    if (doc.exists) return; // ya registrado
+    await ref.set({ uid: _currentUser.uid, email: _currentUser.email, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+    _isCreator = true;
+    actualizarVistsFeedback();
+    cargarFeedback();
+    toast('Registrado como creador ✓', 'ok');
+  } catch(e) { toast('Error: ' + e.message, 'err'); }
 }
 
 async function enviarFeedback() {
