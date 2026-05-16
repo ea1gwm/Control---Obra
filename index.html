@@ -557,6 +557,10 @@
         <div class="stat-val" id="res-dias">—</div>
         <div class="stat-lbl">Días trabajados</div>
       </div>
+      <div class="stat-card" id="res-cedidos-card" style="display:none;">
+        <div class="stat-val" id="res-cedidos" style="color:var(--muted);">—</div>
+        <div class="stat-lbl">Días cedidos / sin equipo</div>
+      </div>
       <div class="stat-card">
         <div class="stat-val" id="res-metros">—</div>
         <div class="stat-lbl">Metros totales</div>
@@ -775,7 +779,7 @@
 
 <footer style="text-align:center;padding:1.5rem 1rem 2.5rem;pointer-events:none;">
   <span style="font-size:.72rem;color:#334155;font-family:'DM Mono',monospace;letter-spacing:.08em;">
-    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v3.7
+    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v4.1
   </span>
 </footer>
 
@@ -1115,7 +1119,20 @@ function recalc() {
 
   // 3. Totales globales
   const totalMetros = rows.reduce((s, r) => s + r.metros, 0);
-  const totalObj    = tiposPresentes.reduce((s, t) => s + objPorTipo[t], 0);
+  // Tipos activos = solo los que tienen metros > 0
+  const tiposActivos = tiposPresentes.filter(t => metrosPorTipo[t] > 0);
+  let totalObj;
+  if (tiposActivos.length > 0) {
+    // Hay producción: objetivo = suma de los tipos que produjeron
+    totalObj = tiposActivos.reduce((s, t) => s + objPorTipo[t], 0);
+  } else {
+    // Sin producción: objetivo = el más alto de TODOS los tipos configurados
+    totalObj = Math.max(...Object.keys(obj).map(t =>
+      sinProduccion ? 0 : Math.round(obj[t] * personas * factor)
+    ));
+    if (sinProduccion) totalObj = 0;
+    else totalObj = Math.max(...Object.keys(obj).map(t => Math.round(obj[t] * personas * factor)));
+  }
 
   // 4. Actualizar columnas de cada fila
   // Objetivo: solo se muestra en la PRIMERA fila de cada tipo y si tiene metros > 0.
@@ -1200,7 +1217,18 @@ async function guardarDia() {
   const opt = {};
   tipos2.forEach(t => { opt[t] = (personas === 0) ? 0 : Math.round(obj[t] * personas * factor); });
   const totalMetros = rows.reduce((s, r) => s + r.metros, 0);
-  const totalObj    = tipos2.reduce((s, t) => s + opt[t], 0);
+  // Tipos activos = solo los que tienen metros > 0
+  const tiposActivos2 = tipos2.filter(t => mpt[t] > 0);
+  let totalObj;
+  if (personas === 0) {
+    totalObj = 0;
+  } else if (tiposActivos2.length > 0) {
+    // Hay producción: objetivo = suma de tipos que produjeron
+    totalObj = tiposActivos2.reduce((s, t) => s + opt[t], 0);
+  } else {
+    // Sin producción: objetivo = el más alto de TODOS los tipos configurados
+    totalObj = Math.max(...Object.keys(obj).map(t => Math.round(obj[t] * personas * factor)));
+  }
   const prodDetalle = rows.map(r => ({
     tipo: r.tipo, cable: r.cable, metros: r.metros,
     objLinea: opt[r.tipo],
@@ -1357,7 +1385,7 @@ function renderRegistro() {
       <td>${det||'—'}</td>
       <td style="font-family:var(--mono);font-weight:700;">${r.metros}</td>
       <td style="font-family:var(--mono);">${r.objEq}</td>
-      <td>${r.personas === 0 ? '<span class="badge" style="background:rgba(148,163,184,.15);color:var(--muted)">Sin prod.</span>' : mkBadge(r.cumplimiento)}</td>
+      <td>${r.personas === 0 ? '<span class="badge" style="background:rgba(148,163,184,.15);color:var(--muted)">Cedido</span>' : mkBadge(r.cumplimiento)}</td>
       <td style="font-family:var(--mono);">${r.mediaPersona > 0 ? r.mediaPersona : '—'}</td>
       <td style="font-size:.78rem;max-width:130px;word-break:break-word;">${r.notas||''}</td>
       <td style="white-space:nowrap;">
@@ -1383,22 +1411,29 @@ function renderResumen() {
   let tM=0;
   recs.forEach(r => { tM += r.metros; });
 
-  // Cumplimiento = promedio de los cumplimientos diarios guardados
-  const cumpl = recs.length > 0
-    ? Math.round(recs.reduce((s,r) => s + r.cumplimiento, 0) / recs.length)
+  // Separar: días activos (personas > 0) y días cedidos (personas = 0)
+  const diasActivos = recs.filter(r => r.personas > 0);
+  const diasCedidos = recs.filter(r => r.personas === 0);
+
+  // Cumplimiento y media solo sobre días activos — los cedidos no cuentan
+  const cumpl = diasActivos.length > 0
+    ? Math.round(diasActivos.reduce((s,r) => s + r.cumplimiento, 0) / diasActivos.length)
     : 0;
-  // Media por persona = promedio de las medias diarias guardadas (solo días trabajados)
-  // Solo excluir días con personas=0 (sin producción / nota pura)
-  // Si personas>0 y metros=0, sí cuenta (día trabajado sin producción, baja la media)
-  const diasConPersonas = recs.filter(r => r.personas > 0);
-  const media = diasConPersonas.length > 0
-    ? Math.round(diasConPersonas.reduce((s,r) => s + r.mediaPersona, 0) / diasConPersonas.length)
+  const media = diasActivos.length > 0
+    ? Math.round(diasActivos.reduce((s,r) => s + r.mediaPersona, 0) / diasActivos.length)
     : 0;
 
-  document.getElementById('res-dias').textContent    = recs.length;
+  document.getElementById('res-dias').textContent    = diasActivos.length;
   document.getElementById('res-metros').textContent  = tM.toLocaleString('es');
-  document.getElementById('res-objetivo').textContent= recs.length > 0 ? (Math.round(recs.reduce((s,r)=>s+r.metros,0)/recs.length)).toLocaleString('es') + ' m' : '—';
+  document.getElementById('res-objetivo').textContent= diasActivos.length > 0
+    ? (Math.round(diasActivos.reduce((s,r)=>s+r.metros,0)/diasActivos.length)).toLocaleString('es') + ' m' : '—';
   document.getElementById('res-media').textContent   = media.toLocaleString('es') + ' m';
+
+  // Tarjeta "Días cedidos" — solo visible si hay alguno ese mes
+  const cedCard = document.getElementById('res-cedidos-card');
+  const cedEl   = document.getElementById('res-cedidos');
+  if (cedCard) cedCard.style.display = diasCedidos.length > 0 ? 'block' : 'none';
+  if (cedEl)   cedEl.textContent = diasCedidos.length;
 
   const cel = document.getElementById('res-cumpl');
   cel.textContent = cumpl + '%';
@@ -1805,9 +1840,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Ajustes
   loadAjustes();
 
-  // Default rows
+  // Solo una fila inicial — añadir más si hace falta
   addRow('Ra');
-  addRow('Malla');
 
   // Initial renders
   recalc();
