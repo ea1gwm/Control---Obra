@@ -372,6 +372,22 @@
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+    /* ── TEMA CLARO ─────────────────────────────────────────────── */
+    body.theme-light {
+      --bg:     #f1f5f9;
+      --card:   #ffffff;
+      --border: #cbd5e1;
+      --text:   #1e293b;
+      --muted:  #64748b;
+    }
+    body.theme-light input, body.theme-light select, body.theme-light textarea {
+      background: #f8fafc; color: #1e293b; border-color: #cbd5e1;
+    }
+    body.theme-light .data-table th { background: rgba(203,213,225,.6); color: #475569; }
+    body.theme-light nav { background: #fff; }
+    body.theme-light .stat-card { background: #fff; }
+    body.theme-light .card { background: #fff; }
+    body.theme-light .prod-table td, body.theme-light .data-table td { border-color: rgba(203,213,225,.6); }
   </style>
 </head>
 <body>
@@ -705,6 +721,15 @@
       <div class="card-title">Valores actuales</div>
       <div class="gauto" id="obj-display"></div>
     </div>
+    <div class="card" style="margin-top:1rem;">
+      <div class="card-title">Apariencia</div>
+      <label style="margin-bottom:.75rem;display:block;">Tema de la aplicación</label>
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
+        <button class="btn btn-ghost" id="theme-auto"  onclick="setTheme('auto')"  style="flex:1;justify-content:center;">🌗 Auto (sistema)</button>
+        <button class="btn btn-ghost" id="theme-dark"  onclick="setTheme('dark')"  style="flex:1;justify-content:center;">🌙 Oscuro</button>
+        <button class="btn btn-ghost" id="theme-light" onclick="setTheme('light')" style="flex:1;justify-content:center;">☀️ Claro</button>
+      </div>
+    </div>
   </div>
   <!-- END tab-ajustes -->
 
@@ -712,7 +737,7 @@
 
 <footer style="text-align:center;padding:1.5rem 1rem 2.5rem;pointer-events:none;">
   <span style="font-size:.72rem;color:#334155;font-family:'DM Mono',monospace;letter-spacing:.08em;">
-    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v3.0
+    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v3.1
   </span>
 </footer>
 
@@ -1228,17 +1253,21 @@ function resetearFormulario() {
 // ELIMINAR DÍA
 // ════════════════════════════════════════════════════════════
 function eliminarDia(fecha) {
-  modalConfirm('¿Mover el registro del ' + fmtFecha(fecha) + ' a la papelera? Podrás recuperarlo durante 30 días.', async ok => {
+  const tengoId = !!_registroDocs[fecha];
+  const msg = tengoId
+    ? '¿Mover el registro del ' + fmtFecha(fecha) + ' a la papelera? Podrás recuperarlo durante 30 días.'
+    : '¿Eliminar el registro del ' + fmtFecha(fecha) + '? (Este registro no está en Firebase, se borrará solo localmente.)';
+  modalConfirm(msg, async ok => {
     if (!ok) return;
-    if (_fbAuth?.currentUser && _teamId) {
+    if (_fbAuth?.currentUser && _teamId && tengoId) {
       await fbSoftDelete(fecha);
       toast('Movido a papelera ✓', 'ok');
     } else {
       saveData(loadData().filter(d => d.fecha !== fecha));
       renderRegistro();
-      toast('Registro eliminado (solo local)', 'ok');
+      toast('Registro eliminado ✓', 'ok');
     }
-  }, { okText: 'A la papelera', okColor: 'btn-yellow' });
+  }, { okText: tengoId ? '🗑 A la papelera' : '🗑 Eliminar', okColor: 'btn-yellow' });
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1442,18 +1471,44 @@ function importJSON(e) {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = ev => {
+  reader.onload = async ev => {
     try {
       const parsed = JSON.parse(ev.target.result);
       const arr = parsed.data || parsed;
       if (!Array.isArray(arr)) throw new Error('Formato inválido');
       if (!confirm('Importar ' + arr.length + ' registros? Se reemplazarán los datos actuales.')) return;
       saveData(arr);
+      _dataCache = arr;
       toast(arr.length + ' registros importados ✓', 'ok');
+      renderRegistro();
+      renderResumen();
+      // Subir TODOS a Firestore si hay sesión activa
+      if (_fbAuth?.currentUser && _teamId) {
+        toast('Sincronizando con Firebase…', 'inf');
+        await pushAllDataToFirestore(arr);
+        toast('Todo sincronizado con Firebase ✓', 'ok');
+      }
     } catch(err) { toast('Error: ' + err.message, 'err'); }
   };
   reader.readAsText(file);
   e.target.value = '';
+}
+
+async function pushAllDataToFirestore(arr) {
+  if (!_fbAuth?.currentUser || !_teamId || !_fbDb) return;
+  const now = firebase.firestore.FieldValue.serverTimestamp();
+  for (const r of arr) {
+    const existingId = _registroDocs[r.fecha];
+    const data = { ...r, deleted: false, modifiedBy: _currentUser.uid, modifiedByEmail: _currentUser.email, modifiedAt: now };
+    if (existingId) {
+      await _fbDb.collection('teams').doc(_teamId).collection('registros').doc(existingId).set(data, { merge: true });
+    } else {
+      data.createdBy = _currentUser.uid;
+      data.createdByEmail = _currentUser.email;
+      data.createdAt = now;
+      await _fbDb.collection('teams').doc(_teamId).collection('registros').add(data);
+    }
+  }
 }
 
 function exportCSV() {
@@ -1711,6 +1766,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initial renders
   recalc();
   renderResumen();
+
+  // Tema
+  const savedTheme = localStorage.getItem('theme') || 'auto';
+  applyTheme(savedTheme);
+  ['auto','dark','light'].forEach(m => {
+    const btn = document.getElementById('theme-' + m);
+    if (btn) btn.className = 'btn ' + (m === savedTheme ? 'btn-yellow' : 'btn-ghost');
+  });
+  // Actualizar si cambia preferencia del sistema
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if ((localStorage.getItem('theme') || 'auto') === 'auto') applyTheme('auto');
+  });
 
   // Inicializar Firebase si está configurado
   firebaseAutoInit();
@@ -2352,7 +2419,30 @@ function closeHelp() {
 
 // Redraw chart on resize
 
-// Redraw chart on resize// Redraw chart on resize
+// Redraw chart on resize// ── TEMA ─────────────────────────────────────────────────────
+function setTheme(mode) {
+  localStorage.setItem('theme', mode);
+  applyTheme(mode);
+  ['auto','dark','light'].forEach(m => {
+    const btn = document.getElementById('theme-' + m);
+    if (btn) btn.className = 'btn ' + (m === mode ? 'btn-yellow' : 'btn-ghost');
+  });
+}
+
+function applyTheme(mode) {
+  const body = document.body;
+  if (mode === 'light') {
+    body.classList.add('theme-light');
+  } else if (mode === 'dark') {
+    body.classList.remove('theme-light');
+  } else {
+    // auto: seguir preferencia del sistema
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    body.classList.toggle('theme-light', !prefersDark);
+  }
+}
+
+// Redraw chart on resize
 let _resizeT;
 window.addEventListener('resize', () => {
   clearTimeout(_resizeT);
