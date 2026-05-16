@@ -419,8 +419,11 @@
           <input type="date" id="inp-fecha">
         </div>
         <div>
-          <label>Número de personas <span style="color:var(--muted);font-weight:400;text-transform:none;">(0 = sin producción)</span></label>
-          <input type="number" id="inp-personas" value="1" min="0" oninput="recalc()">
+          <label>Número de personas</label>
+          <input type="number" id="inp-personas" value="1" min="0" oninput="recalc(); checkPersonas()">
+          <div id="msg-cero-personas" style="display:none;margin-top:.35rem;font-size:.78rem;color:var(--yellow);background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:.4rem;padding:.4rem .65rem;">
+            ℹ️ Con 0 personas el día se guarda como <strong>sin producción</strong> y no entra en la media mensual. Útil para anotar incidencias (cedido, baja, lluvia…).
+          </div>
         </div>
       </div>
       <div class="g2">
@@ -722,12 +725,50 @@
       <div class="gauto" id="obj-display"></div>
     </div>
     <div class="card" style="margin-top:1rem;">
+      <div class="card-title">Instalar aplicación</div>
+      <p style="font-size:.83rem;color:var(--muted);margin-bottom:.85rem;line-height:1.6;">
+        Instala FibraControl como app en tu dispositivo para acceder sin navegador y funcionar sin conexión.
+      </p>
+      <button class="btn btn-yellow" onclick="installPWA()" id="btn-install-ajustes">📲 Instalar en este dispositivo</button>
+      <p style="font-size:.75rem;color:var(--muted);margin-top:.6rem;">Si el botón no aparece activo, usa el menú del navegador → "Instalar aplicación" o "Añadir a pantalla de inicio".</p>
+    </div>
+
+    <div class="card" style="margin-top:1rem;">
       <div class="card-title">Apariencia</div>
       <label style="margin-bottom:.75rem;display:block;">Tema de la aplicación</label>
       <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
         <button class="btn btn-ghost" id="theme-auto"  onclick="setTheme('auto')"  style="flex:1;justify-content:center;">🌗 Auto (sistema)</button>
         <button class="btn btn-ghost" id="theme-dark"  onclick="setTheme('dark')"  style="flex:1;justify-content:center;">🌙 Oscuro</button>
         <button class="btn btn-ghost" id="theme-light" onclick="setTheme('light')" style="flex:1;justify-content:center;">☀️ Claro</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:1rem;" id="feedback-card">
+      <div class="card-title">💬 Contacto con el creador</div>
+
+      <!-- Vista usuario: enviar mensaje y ver respuestas -->
+      <div id="feedback-user-view">
+        <p style="font-size:.83rem;color:var(--muted);margin-bottom:.85rem;line-height:1.6;">
+          ¿Encontraste un fallo o tienes una sugerencia? Escríbele a Braulio. Solo se envía el mensaje — ningún dato personal.
+        </p>
+        <textarea id="feedback-msg" placeholder="Describe el fallo o sugerencia…" style="min-height:90px;margin-bottom:.6rem;"></textarea>
+        <button class="btn btn-blue" onclick="enviarFeedback()">📨 Enviar mensaje</button>
+        <div id="feedback-list" style="margin-top:1rem;"></div>
+      </div>
+
+      <!-- Vista creador: ver TODOS los mensajes y responder -->
+      <div id="feedback-creator-view" style="display:none;">
+        <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1rem;padding:.6rem .85rem;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:.5rem;">
+          <span style="font-size:1.1rem;">👑</span>
+          <span style="font-size:.83rem;color:var(--yellow);font-weight:600;">Modo creador — ves todos los mensajes</span>
+        </div>
+        <div id="feedback-all-list"></div>
+      </div>
+
+      <!-- Primer uso: botón para registrarse como creador -->
+      <div id="feedback-claim-view" style="display:none;margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border);">
+        <p style="font-size:.78rem;color:var(--muted);margin-bottom:.6rem;">¿Eres el creador de la app? Regístrate una sola vez para poder ver y responder los mensajes.</p>
+        <button class="btn btn-ghost btn-sm" onclick="claimCreator()">🔑 Registrarme como creador</button>
       </div>
     </div>
   </div>
@@ -737,7 +778,7 @@
 
 <footer style="text-align:center;padding:1.5rem 1rem 2.5rem;pointer-events:none;">
   <span style="font-size:.72rem;color:#334155;font-family:'DM Mono',monospace;letter-spacing:.08em;">
-    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v3.4
+    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v3.6
   </span>
 </footer>
 
@@ -987,6 +1028,7 @@ function goTab(name, btn) {
   btn.classList.add('active');
   if (name === 'resumen')  renderResumen();
   if (name === 'registro') renderRegistro();
+  if (name === 'ajustes')  initFeedback();
 }
 
 // ════════════════════════════════════════════════════════════
@@ -2434,6 +2476,166 @@ function showHelp() {
 }
 function closeHelp() {
   document.getElementById('help-modal').style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════
+// FEEDBACK — Sistema bidireccional creador/usuarios
+// ═══════════════════════════════════════════════
+let _isCreator = false;
+
+async function initFeedback() {
+  if (!_fbDb || !_currentUser) return;
+  try {
+    // Comprobar si este usuario es el creador registrado
+    const creatorDoc = await _fbDb.collection('appConfig').doc('creator').get();
+    if (creatorDoc.exists && creatorDoc.data().uid === _currentUser.uid) {
+      _isCreator = true;
+    }
+    actualizarVistsFeedback();
+    cargarFeedback();
+  } catch(e) { console.warn('initFeedback:', e); }
+}
+
+function actualizarVistsFeedback() {
+  const userView    = document.getElementById('feedback-user-view');
+  const creatorView = document.getElementById('feedback-creator-view');
+  const claimView   = document.getElementById('feedback-claim-view');
+  if (!userView) return;
+  if (_isCreator) {
+    userView.style.display    = 'none';
+    creatorView.style.display = 'block';
+    claimView.style.display   = 'none';
+  } else {
+    userView.style.display    = 'block';
+    creatorView.style.display = 'none';
+    // Mostrar botón "registrarme como creador" solo si no hay creador aún
+    _fbDb.collection('appConfig').doc('creator').get().then(d => {
+      if (claimView) claimView.style.display = (!d.exists) ? 'block' : 'none';
+    }).catch(() => {});
+  }
+}
+
+async function claimCreator() {
+  if (!_currentUser || !_fbDb) return;
+  modalConfirm('¿Registrarte como creador de la app? Solo puede haber uno y no se puede deshacer.', async ok => {
+    if (!ok) return;
+    try {
+      // Solo crear si no existe ya
+      const ref = _fbDb.collection('appConfig').doc('creator');
+      const doc = await ref.get();
+      if (doc.exists) { toast('Ya hay un creador registrado', 'err'); return; }
+      await ref.set({ uid: _currentUser.uid, email: _currentUser.email, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+      _isCreator = true;
+      actualizarVistsFeedback();
+      cargarFeedback();
+      toast('Registrado como creador ✓', 'ok');
+    } catch(e) { toast('Error: ' + e.message, 'err'); }
+  }, { okText: 'Sí, registrarme', okColor: 'btn-yellow' });
+}
+
+async function enviarFeedback() {
+  const msg = document.getElementById('feedback-msg').value.trim();
+  if (!msg) { toast('Escribe un mensaje primero', 'err'); return; }
+  if (!_fbDb || !_currentUser) { toast('Necesitas iniciar sesión primero', 'err'); return; }
+  try {
+    await _fbDb.collection('appFeedback').add({
+      mensaje: msg,
+      appType: APP_TYPE,
+      teamId: _teamId || null,
+      userId: _currentUser.uid,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      leido: false,
+      respuesta: null,
+      respondidoEn: null
+    });
+    document.getElementById('feedback-msg').value = '';
+    toast('Mensaje enviado ✓ — Braulio te responderá en la app', 'ok');
+    cargarFeedback();
+  } catch(e) { toast('Error: ' + e.message, 'err'); }
+}
+
+async function cargarFeedback() {
+  if (!_fbDb || !_currentUser) return;
+  if (_isCreator) {
+    await cargarFeedbackCreador();
+  } else {
+    await cargarFeedbackUsuario();
+  }
+}
+
+async function cargarFeedbackUsuario() {
+  const wrap = document.getElementById('feedback-list');
+  if (!wrap) return;
+  try {
+    const snap = await _fbDb.collection('appFeedback')
+      .where('userId', '==', _currentUser.uid)
+      .orderBy('timestamp', 'desc').limit(15).get();
+    if (snap.empty) { wrap.innerHTML = '<div style="font-size:.83rem;color:var(--muted);padding:.5rem 0">Sin mensajes enviados aún.</div>'; return; }
+    wrap.innerHTML = '<div style="font-size:.75rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">Tus mensajes</div>' +
+      snap.docs.map(d => {
+        const data = d.data();
+        const fecha = data.timestamp?.toDate ? data.timestamp.toDate().toLocaleString('es') : '—';
+        const tieneResp = data.respuesta?.trim();
+        return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:.5rem;padding:.75rem;margin-bottom:.5rem;">' +
+          '<div style="font-size:.83rem;margin-bottom:.3rem;">' + data.mensaje.replace(/</g,'&lt;') + '</div>' +
+          '<div style="font-size:.72rem;color:var(--muted);font-family:var(--mono);">' + fecha + '</div>' +
+          (tieneResp
+            ? '<div style="margin-top:.5rem;padding:.5rem .65rem;background:rgba(96,165,250,.08);border-left:2px solid var(--blue);border-radius:.25rem;">' +
+              '<div style="font-size:.72rem;color:var(--blue);font-weight:600;margin-bottom:.2rem;">💬 Respuesta de Braulio</div>' +
+              '<div style="font-size:.83rem;">' + data.respuesta.replace(/</g,'&lt;') + '</div></div>'
+            : '<div style="font-size:.72rem;color:var(--muted);margin-top:.3rem;font-style:italic;">⏳ Pendiente de respuesta</div>') +
+        '</div>';
+      }).join('');
+  } catch(e) { console.warn('feedback usuario:', e); }
+}
+
+async function cargarFeedbackCreador() {
+  const wrap = document.getElementById('feedback-all-list');
+  if (!wrap) return;
+  try {
+    const snap = await _fbDb.collection('appFeedback')
+      .orderBy('timestamp', 'desc').limit(50).get();
+    if (snap.empty) { wrap.innerHTML = '<div style="font-size:.83rem;color:var(--muted)">Sin mensajes recibidos.</div>'; return; }
+    wrap.innerHTML = snap.docs.map(d => {
+      const data = d.data();
+      const docId = d.id;
+      const fecha = data.timestamp?.toDate ? data.timestamp.toDate().toLocaleString('es') : '—';
+      const tieneResp = data.respuesta?.trim();
+      return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:.5rem;padding:.85rem;margin-bottom:.65rem;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;margin-bottom:.4rem;">' +
+        '<div style="font-size:.83rem;flex:1;">' + data.mensaje.replace(/</g,'&lt;') + '</div>' +
+        (tieneResp ? '<span style="font-size:.7rem;background:rgba(16,185,129,.15);color:var(--green);padding:.15rem .5rem;border-radius:999px;white-space:nowrap;">✓ Respondido</span>' : '<span style="font-size:.7rem;background:rgba(245,158,11,.12);color:var(--yellow);padding:.15rem .5rem;border-radius:999px;white-space:nowrap;">⏳ Sin respuesta</span>') +
+        '</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);font-family:var(--mono);margin-bottom:.6rem;">' + fecha + ' · app: ' + (data.appType||'?') + '</div>' +
+        (tieneResp ? '<div style="font-size:.8rem;color:var(--blue);background:rgba(96,165,250,.08);padding:.4rem .6rem;border-radius:.35rem;margin-bottom:.6rem;">💬 ' + data.respuesta.replace(/</g,'&lt;') + '</div>' : '') +
+        '<div style="display:flex;gap:.4rem;">' +
+        '<textarea id="resp-' + docId + '" placeholder="Escribe tu respuesta…" style="flex:1;min-height:55px;font-size:.8rem;resize:vertical;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:.4rem;padding:.4rem .6rem;font-family:var(--font);">' + (tieneResp ? data.respuesta : '') + '</textarea>' +
+        '<button class="btn btn-blue btn-sm" onclick="responderFeedback(\'' + docId + '\')" style="align-self:flex-end">Enviar</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  } catch(e) { console.warn('feedback creador:', e); }
+}
+
+async function responderFeedback(docId) {
+  if (!_isCreator) return;
+  const ta = document.getElementById('resp-' + docId);
+  if (!ta || !ta.value.trim()) { toast('Escribe una respuesta', 'err'); return; }
+  try {
+    await _fbDb.collection('appFeedback').doc(docId).update({
+      respuesta: ta.value.trim(),
+      respondidoEn: firebase.firestore.FieldValue.serverTimestamp(),
+      leido: true
+    });
+    toast('Respuesta enviada ✓', 'ok');
+    cargarFeedbackCreador();
+  } catch(e) { toast('Error: ' + e.message, 'err'); }
+}
+
+function checkPersonas() {
+  const v = parseInt(document.getElementById('inp-personas').value) || 0;
+  const msg = document.getElementById('msg-cero-personas');
+  if (msg) msg.style.display = v === 0 ? 'block' : 'none';
 }
 
 // Redraw chart on resize
