@@ -779,7 +779,7 @@
 
 <footer style="text-align:center;padding:1.5rem 1rem 2.5rem;pointer-events:none;">
   <span style="font-size:.72rem;color:#334155;font-family:'DM Mono',monospace;letter-spacing:.08em;">
-    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v4.2
+    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v4.3
   </span>
 </footer>
 
@@ -1230,7 +1230,7 @@ async function guardarDia() {
     cumpl: opt[r.tipo] > 0 ? Math.round(mpt[r.tipo] / opt[r.tipo] * 100) : (mpt[r.tipo] > 0 ? 100 : 0)
   }));
   // Si personas=0: día sin producción (cedido, baja, etc.) → cumplimiento=0, media=0
-  const tiposActivos2 = tipos2.filter(t => mpt[t] > 0);
+  // Usa tiposActivos2 ya calculado arriba
   const cumplimiento = (personas === 0 || tiposActivos2.length === 0) ? 0
     : tiposActivos2.reduce((s, t) => s + (opt[t] > 0 ? Math.round(mpt[t] / opt[t] * 100) : 0), 0);
   const mediaPersona = (personas > 0 && totalMetros > 0) ? Math.round(totalMetros / personas) : 0;
