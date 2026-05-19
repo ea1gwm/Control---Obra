@@ -622,17 +622,28 @@
     <div class="card" id="team-mgmt-card" style="display:none;">
       <div class="card-title">Miembros del equipo</div>
       <div id="team-members-list" style="margin-bottom:.75rem;"></div>
-      <div id="invite-box" style="display:none;border-top:1px solid var(--border);padding-top:.75rem;">
-        <label style="font-size:.78rem;color:var(--muted);margin-bottom:.4rem;">Invitar nuevo miembro</label>
-        <div style="display:flex;gap:.5rem;align-items:stretch;flex-wrap:wrap;">
-          <input type="email" id="inv-email" placeholder="correo@gmail.com" style="flex:1;min-width:180px;">
-          <select id="inv-role" style="width:auto;flex:0 0 auto;min-width:140px;">
+      <!-- ADMIN: Generar código de acceso -->
+      <div id="invite-box" style="display:none;border-top:1px solid var(--border);padding-top:.85rem;">
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">🔑 Código de acceso temporal</div>
+        <p style="font-size:.8rem;color:var(--muted);margin-bottom:.65rem;line-height:1.5">Genera un código y dáselo a quien vaya a cubrirte. Válido 7 días, un solo uso. Cuando termine, elimínalo.</p>
+        <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.65rem;">
+          <select id="code-role-fc" style="flex:1;min-width:160px;">
+            <option value="editor-own">✏ Editor solo nuevas entradas</option>
+            <option value="editor">✏ Editor completo</option>
             <option value="viewer">👁 Solo ver</option>
-            <option value="editor-own">✏ Editor solo propios</option>
-            <option value="editor">✏ Editor (todo)</option>
-            <option value="admin">👑 Admin</option>
           </select>
-          <button class="btn btn-blue btn-sm" onclick="fbInviteMember()">✉ Invitar</button>
+          <button class="btn btn-blue btn-sm" onclick="generarCodigo()">🔑 Generar código</button>
+        </div>
+        <div id="codigos-activos-fc"></div>
+      </div>
+
+      <!-- Cualquier usuario: introducir código -->
+      <div style="border-top:1px solid var(--border);padding-top:.85rem;margin-top:.5rem;">
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:.4rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">¿Tienes un código de acceso?</div>
+        <div style="display:flex;gap:.5rem;">
+          <input type="text" id="inp-codigo-fc" placeholder="Ej: AB3K9M" maxlength="6"
+            style="flex:1;font-family:var(--mono);letter-spacing:3px;text-transform:uppercase;font-size:1rem;">
+          <button class="btn btn-blue btn-sm" onclick="usarCodigo()">✅ Unirme</button>
         </div>
       </div>
     </div>
@@ -747,31 +758,7 @@
       </div>
     </div>
 
-    <div class="card" style="margin-top:1rem;" id="feedback-card">
-      <div class="card-title">💬 Contacto con el creador</div>
 
-      <!-- Vista usuario: enviar mensaje y ver respuestas -->
-      <div id="feedback-user-view">
-        <p style="font-size:.83rem;color:var(--muted);margin-bottom:.85rem;line-height:1.6;">
-          ¿Encontraste un fallo o tienes una sugerencia? Escríbele a Braulio. Solo se envía el mensaje — ningún dato personal.
-        </p>
-        <textarea id="feedback-msg" placeholder="Describe el fallo o sugerencia…" style="min-height:90px;margin-bottom:.6rem;"></textarea>
-        <button class="btn btn-blue" onclick="enviarFeedback()">📨 Enviar mensaje</button>
-        <div id="feedback-list" style="margin-top:1rem;"></div>
-      </div>
-
-      <!-- Vista creador: ver TODOS los mensajes y responder -->
-      <div id="feedback-creator-view" style="display:none;">
-        <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1rem;padding:.6rem .85rem;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:.5rem;">
-          <span style="font-size:1.1rem;">👑</span>
-          <span style="font-size:.83rem;color:var(--yellow);font-weight:600;">Modo creador — ves todos los mensajes</span>
-        </div>
-        <div id="feedback-all-list"></div>
-      </div>
-
-      <!-- El registro como creador es automático y silencioso — no hay botón visible -->
-      <div id="feedback-claim-view" style="display:none;"></div>
-    </div>
   </div>
   <!-- END tab-ajustes -->
 
@@ -779,7 +766,7 @@
 
 <footer style="text-align:center;padding:1.5rem 1rem 2.5rem;pointer-events:none;">
   <span style="font-size:.72rem;color:#334155;font-family:'DM Mono',monospace;letter-spacing:.08em;">
-    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v4.3
+    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v5.0
   </span>
 </footer>
 
@@ -1029,7 +1016,7 @@ function goTab(name, btn) {
   btn.classList.add('active');
   if (name === 'resumen')  renderResumen();
   if (name === 'registro') renderRegistro();
-  if (name === 'ajustes')  initFeedback();
+  if (name === 'ajustes')  cargarCodigosActivos();
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1474,15 +1461,15 @@ function renderChart(recs, diasD, mes, anio) {
   days.forEach((d,i) => {
     const cx = ML + i*slot + slot/2;
     if (d.has) {
-      // Objective bar (background, gray)
-      if (d.obj > 0) {
+      const color = d.cumpl>=100?'#10b981':d.cumpl>=80?'#f59e0b':'#ef4444';
+      // Barra objetivo (gris fondo) — solo si no se alcanzó el 100%
+      if (d.obj > 0 && d.cumpl < 100) {
         const oh = cH * d.obj / maxV;
         s += `<rect x="${(cx-bw).toFixed(1)}" y="${(MT+cH-oh).toFixed(1)}" width="${(bw*2).toFixed(1)}" height="${oh.toFixed(1)}" fill="#2d3f55" rx="2"/>`;
       }
-      // Realizado bar
-      const mh    = d.metros > 0 ? cH * d.metros / maxV : 2;
-      const color = d.cumpl>=100?'#10b981':d.cumpl>=80?'#f59e0b':'#ef4444'; // usa cumplimiento guardado
-      s += `<rect x="${(cx-bw*0.55).toFixed(1)}" y="${(MT+cH-mh).toFixed(1)}" width="${(bw*1.1).toFixed(1)}" height="${mh.toFixed(1)}" fill="${color}" rx="2"/>`;
+      // Barra realizado — misma anchura que objetivo
+      const mh = d.metros > 0 ? cH * d.metros / maxV : 2;
+      s += `<rect x="${(cx-bw).toFixed(1)}" y="${(MT+cH-mh).toFixed(1)}" width="${(bw*2).toFixed(1)}" height="${mh.toFixed(1)}" fill="${color}" rx="2"/>`;
     }
     // Day label (every other day if month >15 days)
     if (diasD<=15 || d.d%2===1 || d.d===diasD) {
@@ -2073,7 +2060,13 @@ function subscribeToTeam(teamId) {
     applyRoleRestrictions();
   });
 
-  _unsubReg = _fbDb.collection('teams').doc(teamId).collection('registros').onSnapshot(snap => {
+  // editor-own: solo ve sus propias entradas para no ver el historial del admin
+  const _regQuery = (_myRole === 'editor-own')
+    ? _fbDb.collection('teams').doc(teamId).collection('registros')
+        .where('createdBy', '==', _currentUser.uid)
+    : _fbDb.collection('teams').doc(teamId).collection('registros');
+
+  _unsubReg = _regQuery.onSnapshot(snap => {
     const active = [], trash = [];
     _registroDocs = {};
     snap.docs.forEach(d => {
@@ -2507,155 +2500,85 @@ function closeHelp() {
 }
 
 // ═══════════════════════════════════════════════
-// FEEDBACK — Sistema bidireccional creador/usuarios
+// SISTEMA DE CÓDIGOS DE ACCESO
 // ═══════════════════════════════════════════════
-let _isCreator = false;
+const ROLE_LABELS_FC = { admin: '👑 Admin', editor: '✏ Editor', 'editor-own': '✏ Solo nuevos', viewer: '👁 Solo ver' };
 
-async function initFeedback() {
-  if (!_fbDb || !_currentUser) return;
+async function generarCodigo() {
+  if (_myRole !== 'admin') { toast('Solo el admin puede generar códigos', 'err'); return; }
+  const role = document.getElementById('code-role-fc')?.value || 'editor-own';
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   try {
-    const creatorDoc = await _fbDb.collection('appConfig').doc('creator').get();
-    if (creatorDoc.exists && creatorDoc.data().uid === _currentUser.uid) {
-      _isCreator = true;
-    } else if (!creatorDoc.exists && _currentUser.email.toLowerCase() === _CE) {
-      // Auto-registrar al creador en su primera visita — nadie más puede hacer esto
-      await claimCreator();
-    }
-    actualizarVistsFeedback();
-    cargarFeedback();
-  } catch(e) { console.warn('initFeedback:', e); }
-}
-
-function actualizarVistsFeedback() {
-  const userView    = document.getElementById('feedback-user-view');
-  const creatorView = document.getElementById('feedback-creator-view');
-  const claimView   = document.getElementById('feedback-claim-view');
-  if (!userView) return;
-  if (_isCreator) {
-    userView.style.display    = 'none';
-    creatorView.style.display = 'block';
-    claimView.style.display   = 'none';
-  } else {
-    userView.style.display    = 'block';
-    creatorView.style.display = 'none';
-    // El botón de claim está oculto — el registro es automático para el creador
-  }
-}
-
-async function claimCreator() {
-  // Solo funciona si el email coincide con el del creador — nadie más puede adjudicárselo
-  if (!_currentUser || !_fbDb) return;
-  if (_currentUser.email.toLowerCase() !== _CE) return; // silencioso: no revelar el email
-  try {
-    const ref = _fbDb.collection('appConfig').doc('creator');
-    const doc = await ref.get();
-    if (doc.exists) return; // ya registrado
-    await ref.set({ uid: _currentUser.uid, email: _currentUser.email, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
-    _isCreator = true;
-    actualizarVistsFeedback();
-    cargarFeedback();
-    toast('Registrado como creador ✓', 'ok');
-  } catch(e) { toast('Error: ' + e.message, 'err'); }
-}
-
-async function enviarFeedback() {
-  const msg = document.getElementById('feedback-msg').value.trim();
-  if (!msg) { toast('Escribe un mensaje primero', 'err'); return; }
-  if (!_fbDb || !_currentUser) { toast('Necesitas iniciar sesión primero', 'err'); return; }
-  try {
-    await _fbDb.collection('appFeedback').add({
-      mensaje: msg,
-      appType: APP_TYPE,
-      teamId: _teamId || null,
-      userId: _currentUser.uid,
-      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-      leido: false,
-      respuesta: null,
-      respondidoEn: null
+    await _fbDb.collection('inviteCodes').doc(code).set({
+      teamId: _teamId, teamName: _teamData?.name || 'Mi equipo',
+      appType: APP_TYPE, role,
+      createdBy: _currentUser.uid,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      expiresAt: firebase.firestore.Timestamp.fromDate(expires),
+      used: false
     });
-    document.getElementById('feedback-msg').value = '';
-    toast('Mensaje enviado ✓ — Braulio te responderá en la app', 'ok');
-    cargarFeedback();
+    await logAudit('invite_code_created', { code, role });
+    await cargarCodigosActivos();
+    toast('Código generado: ' + code, 'ok');
   } catch(e) { toast('Error: ' + e.message, 'err'); }
 }
 
-async function cargarFeedback() {
-  if (!_fbDb || !_currentUser) return;
-  if (_isCreator) {
-    await cargarFeedbackCreador();
-  } else {
-    await cargarFeedbackUsuario();
-  }
+async function eliminarCodigo(code) {
+  if (!confirm('¿Eliminar el código ' + code + '?')) return;
+  try {
+    await _fbDb.collection('inviteCodes').doc(code).delete();
+    await cargarCodigosActivos();
+    toast('Código eliminado', 'ok');
+  } catch(e) { toast('Error: ' + e.message, 'err'); }
 }
 
-async function cargarFeedbackUsuario() {
-  const wrap = document.getElementById('feedback-list');
-  if (!wrap) return;
+async function cargarCodigosActivos() {
+  const wrap = document.getElementById('codigos-activos-fc');
+  if (!wrap || _myRole !== 'admin' || !_teamId) return;
   try {
-    const snap = await _fbDb.collection('appFeedback')
-      .where('userId', '==', _currentUser.uid)
-      .orderBy('timestamp', 'desc').limit(15).get();
-    if (snap.empty) { wrap.innerHTML = '<div style="font-size:.83rem;color:var(--muted);padding:.5rem 0">Sin mensajes enviados aún.</div>'; return; }
-    wrap.innerHTML = '<div style="font-size:.75rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">Tus mensajes</div>' +
-      snap.docs.map(d => {
-        const data = d.data();
-        const fecha = data.timestamp?.toDate ? data.timestamp.toDate().toLocaleString('es') : '—';
-        const tieneResp = data.respuesta?.trim();
-        return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:.5rem;padding:.75rem;margin-bottom:.5rem;">' +
-          '<div style="font-size:.83rem;margin-bottom:.3rem;">' + data.mensaje.replace(/</g,'&lt;') + '</div>' +
-          '<div style="font-size:.72rem;color:var(--muted);font-family:var(--mono);">' + fecha + '</div>' +
-          (tieneResp
-            ? '<div style="margin-top:.5rem;padding:.5rem .65rem;background:rgba(96,165,250,.08);border-left:2px solid var(--blue);border-radius:.25rem;">' +
-              '<div style="font-size:.72rem;color:var(--blue);font-weight:600;margin-bottom:.2rem;">💬 Respuesta de Braulio</div>' +
-              '<div style="font-size:.83rem;">' + data.respuesta.replace(/</g,'&lt;') + '</div></div>'
-            : '<div style="font-size:.72rem;color:var(--muted);margin-top:.3rem;font-style:italic;">⏳ Pendiente de respuesta</div>') +
-        '</div>';
-      }).join('');
-  } catch(e) { console.warn('feedback usuario:', e); }
-}
-
-async function cargarFeedbackCreador() {
-  const wrap = document.getElementById('feedback-all-list');
-  if (!wrap) return;
-  try {
-    const snap = await _fbDb.collection('appFeedback')
-      .orderBy('timestamp', 'desc').limit(50).get();
-    if (snap.empty) { wrap.innerHTML = '<div style="font-size:.83rem;color:var(--muted)">Sin mensajes recibidos.</div>'; return; }
+    const snap = await _fbDb.collection('inviteCodes')
+      .where('teamId', '==', _teamId).where('used', '==', false).get();
+    if (snap.empty) { wrap.innerHTML = '<div style="font-size:.78rem;color:var(--muted)">No hay códigos activos.</div>'; return; }
     wrap.innerHTML = snap.docs.map(d => {
-      const data = d.data();
-      const docId = d.id;
-      const fecha = data.timestamp?.toDate ? data.timestamp.toDate().toLocaleString('es') : '—';
-      const tieneResp = data.respuesta?.trim();
-      return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:.5rem;padding:.85rem;margin-bottom:.65rem;">' +
-        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;margin-bottom:.4rem;">' +
-        '<div style="font-size:.83rem;flex:1;">' + data.mensaje.replace(/</g,'&lt;') + '</div>' +
-        (tieneResp ? '<span style="font-size:.7rem;background:rgba(16,185,129,.15);color:var(--green);padding:.15rem .5rem;border-radius:999px;white-space:nowrap;">✓ Respondido</span>' : '<span style="font-size:.7rem;background:rgba(245,158,11,.12);color:var(--yellow);padding:.15rem .5rem;border-radius:999px;white-space:nowrap;">⏳ Sin respuesta</span>') +
-        '</div>' +
-        '<div style="font-size:.72rem;color:var(--muted);font-family:var(--mono);margin-bottom:.6rem;">' + fecha + ' · app: ' + (data.appType||'?') + '</div>' +
-        (tieneResp ? '<div style="font-size:.8rem;color:var(--blue);background:rgba(96,165,250,.08);padding:.4rem .6rem;border-radius:.35rem;margin-bottom:.6rem;">💬 ' + data.respuesta.replace(/</g,'&lt;') + '</div>' : '') +
-        '<div style="display:flex;gap:.4rem;">' +
-        '<textarea id="resp-' + docId + '" placeholder="Escribe tu respuesta…" style="flex:1;min-height:55px;font-size:.8rem;resize:vertical;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:.4rem;padding:.4rem .6rem;font-family:var(--font);">' + (tieneResp ? data.respuesta : '') + '</textarea>' +
-        '<button class="btn btn-blue btn-sm" onclick="responderFeedback(\'' + docId + '\')" style="align-self:flex-end">Enviar</button>' +
-        '</div>' +
-      '</div>';
+      const dt = d.data();
+      const exp = dt.expiresAt?.toDate ? dt.expiresAt.toDate().toLocaleDateString('es') : '?';
+      const roleLbl = ROLE_LABELS_FC[dt.role] || dt.role;
+      return `<div style="display:flex;align-items:center;gap:.5rem;background:var(--bg);border-radius:.4rem;padding:.5rem .75rem;margin-bottom:.35rem;">
+        <span style="font-family:var(--mono);font-size:1rem;font-weight:700;color:var(--accent3);letter-spacing:3px">${d.id}</span>
+        <span style="font-size:.75rem;color:var(--muted);flex:1">${roleLbl} · caduca ${exp}</span>
+        <button onclick="eliminarCodigo('${d.id}')" style="background:rgba(239,68,68,.12);color:var(--red);border:none;border-radius:4px;padding:2px 7px;font-size:.75rem;cursor:pointer">✕</button>
+      </div>`;
     }).join('');
-  } catch(e) { console.warn('feedback creador:', e); }
+  } catch(e) { console.warn('cargarCodigos:', e); }
 }
 
-async function responderFeedback(docId) {
-  if (!_isCreator) return;
-  const ta = document.getElementById('resp-' + docId);
-  if (!ta || !ta.value.trim()) { toast('Escribe una respuesta', 'err'); return; }
+async function usarCodigo() {
+  const code = (document.getElementById('inp-codigo-fc')?.value || '').trim().toUpperCase();
+  if (!code || code.length !== 6) { toast('Código de 6 caracteres', 'err'); return; }
+  if (!_fbAuth?.currentUser) { toast('Inicia sesión primero', 'err'); return; }
   try {
-    await _fbDb.collection('appFeedback').doc(docId).update({
-      respuesta: ta.value.trim(),
-      respondidoEn: firebase.firestore.FieldValue.serverTimestamp(),
-      leido: true
+    const doc = await _fbDb.collection('inviteCodes').doc(code).get();
+    if (!doc.exists) { toast('Código inválido o ya usado', 'err'); return; }
+    const dt = doc.data();
+    if (dt.used) { toast('Este código ya fue utilizado', 'err'); return; }
+    if (dt.appType !== APP_TYPE) { toast('Código de otra aplicación', 'err'); return; }
+    if (dt.expiresAt?.toDate && dt.expiresAt.toDate() < new Date()) { toast('El código ha caducado', 'err'); return; }
+    if (dt.teamId === _currentUser.uid) { toast('No puedes unirte a tu propio equipo', 'err'); return; }
+    await _fbDb.collection('teams').doc(dt.teamId).update({
+      [`members.${_currentUser.uid}`]: { email: _currentUser.email, role: dt.role, joinedAt: firebase.firestore.FieldValue.serverTimestamp() },
+      memberUids: firebase.firestore.FieldValue.arrayUnion(_currentUser.uid)
     });
-    toast('Respuesta enviada ✓', 'ok');
-    cargarFeedbackCreador();
+    await doc.ref.update({ used: true, usedBy: _currentUser.uid, usedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    localStorage.setItem('lastTeamId', dt.teamId);
+    document.getElementById('inp-codigo-fc').value = '';
+    toast('Acceso concedido. Cargando datos…', 'ok');
+    await fbInitForUser(_currentUser);
   } catch(e) { toast('Error: ' + e.message, 'err'); }
 }
+
 
 function checkPersonas() {
   const v = parseInt(document.getElementById('inp-personas').value) || 0;
