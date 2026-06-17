@@ -278,7 +278,7 @@
 
     /* ── REGISTRO TABLE ────────────────────────── */
     .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .data-table { width: 100%; border-collapse: collapse; font-size: .83rem; min-width: 700px; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: .83rem; min-width: 780px; }
     .data-table th {
       background: rgba(51,65,85,.5);
       color: var(--muted);
@@ -1369,7 +1369,7 @@ function renderRegistro() {
       <td style="font-family:var(--mono);">${r.objEq}</td>
       <td>${r.personas === 0 ? '<span class="badge" style="background:rgba(148,163,184,.15);color:var(--muted)">Cedido</span>' : mkBadge(r.cumplimiento)}</td>
       <td style="font-family:var(--mono);">${r.mediaPersona > 0 ? r.mediaPersona : '—'}</td>
-      <td style="font-size:.78rem;max-width:130px;word-break:break-word;">${r.notas||''}</td>
+      <td style="font-size:.78rem;min-width:180px;max-width:240px;word-break:break-word;white-space:pre-wrap;">${r.notas||''}</td>
       <td style="white-space:nowrap;">
         <button class="btn btn-ghost btn-sm" onclick="editarDia('${r.fecha}')" title="Editar">✏️</button>
         <button class="btn btn-sm" style="background:rgba(239,68,68,.15);color:var(--red);margin-left:.25rem;" onclick="eliminarDia('${r.fecha}')" title="Eliminar">🗑</button>
