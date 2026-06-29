@@ -1366,7 +1366,7 @@ function renderRegistro() {
       <td style="font-family:var(--mono);font-size:.78rem;white-space:nowrap;color:var(--muted);">${r.vIda||0}+${r.vVuelta||0}<span style="font-size:.7rem;"> min</span></td>
       <td>${det||'—'}</td>
       <td style="font-family:var(--mono);font-weight:700;">${r.metros}</td>
-      <td style="font-family:var(--mono);">${r.objEq}</td>
+      <td style="font-family:var(--mono);">${objEfectivo(r)}</td>
       <td>${r.personas === 0 ? '<span class="badge" style="background:rgba(148,163,184,.15);color:var(--muted)">Cedido</span>' : mkBadge(r.cumplimiento)}</td>
       <td style="font-family:var(--mono);">${r.mediaPersona > 0 ? r.mediaPersona : '—'}</td>
       <td style="font-size:.78rem;min-width:180px;max-width:240px;word-break:break-word;white-space:pre-wrap;">${r.notas||''}</td>
@@ -1427,6 +1427,15 @@ function renderResumen() {
 // ════════════════════════════════════════════════════════════
 // SVG CHART
 // ════════════════════════════════════════════════════════════
+// Objetivo EFECTIVO: nivel de metros que equivale al 100 % de
+// cumplimiento para la mezcla de tareas de ese día. Se calcula al
+// vuelo desde metros y cumplimiento (ambos guardados), así los
+// registros antiguos se corrigen solos sin migrar datos.
+function objEfectivo(r) {
+  return (r.cumplimiento > 0) ? Math.round(r.metros * 100 / r.cumplimiento) : (r.objEq || 0);
+}
+
+// ════════════════════════════════════════════════════════════
 function renderChart(recs, diasD, mes, anio) {
   const cont = document.getElementById('chart-container');
   if (!cont) return;
@@ -1440,7 +1449,7 @@ function renderChart(recs, diasD, mes, anio) {
   for (let d=1; d<=diasD; d++) {
     const fs  = anio+'-'+mesP+'-'+String(d).padStart(2,'0');
     const reg = recs.find(r => r.fecha===fs);
-    days.push({ d, metros: reg?reg.metros:0, obj: reg?reg.objEq:0, cumpl: reg?reg.cumplimiento:0, has: !!reg });
+    days.push({ d, metros: reg?reg.metros:0, obj: reg?objEfectivo(reg):0, cumpl: reg?reg.cumplimiento:0, has: !!reg });
   }
 
   const maxV = Math.max(...days.map(d => Math.max(d.metros, d.obj)), 100);
@@ -1580,7 +1589,7 @@ function exportCSV() {
   const hdr  = ['Fecha','Personas','Ida(min)','Vuelta(min)','Total m','Objetivo','Cumplimiento%','Media/persona','Notas','Detalle producción'].join(';');
   const rows = data.map(r => [
     fmtFecha(r.fecha),
-    r.personas, r.vIda, r.vVuelta, r.metros, r.objEq, r.cumplimiento, r.mediaPersona,
+    r.personas, r.vIda, r.vVuelta, r.metros, objEfectivo(r), r.cumplimiento, r.mediaPersona,
     '"'+(r.notas||'').replace(/"/g,'""')+'"',
     '"'+(r.prodDetalle||[]).map(d=>`${d.tipo} ${d.cable}: ${d.metros}m`).join('; ')+'"'
   ].join(';'));
@@ -1597,7 +1606,7 @@ function exportPDF() {
   const meses= ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const diasD= new Date(anio,mes+1,0).getDate();
   let tM=0, tO=0;
-  recs.forEach(r => { tM+=r.metros; tO+=r.objEq; });
+  recs.forEach(r => { tM+=r.metros; tO+=objEfectivo(r); });
   const cumpl = tO>0?Math.round(tM/tO*100):0;
   const media = Math.round(tM/diasD);
 
@@ -1607,7 +1616,7 @@ function exportPDF() {
       <td style="text-align:center">${r.personas}</td>
       <td>${(r.prodDetalle||[]).map(d=>`${d.tipo}${d.cable!=='—'?' '+d.cable:''}: ${d.metros}m`).join(', ')}</td>
       <td style="text-align:right">${r.metros}</td>
-      <td style="text-align:right">${r.objEq}</td>
+      <td style="text-align:right">${objEfectivo(r)}</td>
       <td style="text-align:right">${r.cumplimiento}%</td>
       <td style="text-align:right">${r.mediaPersona}</td>
       <td>${r.notas||''}</td>
