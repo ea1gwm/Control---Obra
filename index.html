@@ -766,7 +766,7 @@
 
 <footer style="text-align:center;padding:1.5rem 1rem 2.5rem;pointer-events:none;">
   <span style="font-size:.72rem;color:#334155;font-family:'DM Mono',monospace;letter-spacing:.08em;">
-    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v<span id="app-ver">5.1</span>
+    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v<span id="app-ver">5.2</span>
   </span>
 </footer>
 
@@ -1132,17 +1132,28 @@ function recalc() {
     const oc = document.getElementById('obj-'  + r.id);
     const cc = document.getElementById('cumpl-'+ r.id);
 
-    // Objetivo: mostrar solo en la primera fila del tipo y solo si hay metros en ese tipo
-    if (oc) oc.textContent = (esPrimero && tipoMet > 0) ? tipoObj + ' m' : '—';
+    // Fila secundaria del mismo tipo (con metros): se agrupa con la 1ª línea.
+    const esSecundaria = !esPrimero && r.metros > 0;
 
-    // Cumplimiento: mostrar el % acumulado del tipo, solo en la primera fila con datos
+    // Objetivo: en la 1ª fila del tipo con metros → objetivo; en secundarias → flecha
+    if (oc) {
+      if (esPrimero && tipoMet > 0) { oc.textContent = tipoObj + ' m'; oc.title = ''; }
+      else if (esSecundaria)        { oc.textContent = '↑ ' + r.tipo; oc.title = 'Se suma a la 1ª línea de ' + r.tipo; }
+      else                          { oc.textContent = '—'; oc.title = ''; }
+    }
+
+    // Cumplimiento: % acumulado del tipo en la 1ª fila; en secundarias → flecha
     if (cc) {
-      if (!esPrimero || r.metros === 0) {
-        cc.textContent = '—'; cc.className = 'cm';
+      if (esSecundaria) {
+        cc.textContent = '↑'; cc.className = 'cm';
+        cc.title = 'Cuenta en el % de la 1ª línea de ' + r.tipo;
+      } else if (!esPrimero || r.metros === 0) {
+        cc.textContent = '—'; cc.className = 'cm'; cc.title = '';
       } else {
         const pct = tipoObj > 0 ? Math.round(tipoMet / tipoObj * 100) : 100;
         cc.textContent = pct + '%';
         cc.className   = pct >= 100 ? 'cg' : pct >= 80 ? 'cy' : 'cr';
+        cc.title = '';
       }
     }
   });
@@ -2637,7 +2648,7 @@ let _deferredInstall = null;
 // Va dentro del nombre de caché del SW: al cambiarlo, el móvil
 // detecta la actualización y muestra "Nueva versión disponible".
 // ════════════════════════════════════════════════════════════
-const APP_VERSION = '5.1';
+const APP_VERSION = '5.2';
 const _av = document.getElementById('app-ver');
 if (_av) _av.textContent = APP_VERSION;
 
