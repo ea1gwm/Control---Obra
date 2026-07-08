@@ -766,7 +766,7 @@
 
 <footer style="text-align:center;padding:1.5rem 1rem 2.5rem;pointer-events:none;">
   <span style="font-size:.72rem;color:#334155;font-family:'DM Mono',monospace;letter-spacing:.08em;">
-    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v<span id="app-ver">5.2</span>
+    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v<span id="app-ver">5.3</span>
   </span>
 </footer>
 
@@ -1082,7 +1082,27 @@ function getRows() {
 // El objetivo es POR TIPO ÚNICO, no por fila.
 // Varias filas del mismo tipo comparten un único objetivo.
 // ════════════════════════════════════════════════════════════
+// La Malla no lleva cable (no es cable), así que se oculta su selector y se
+// fuerza a "—". El resto de tipos (Ra, Poste, ICX) sí son cable y lo mantienen.
+// El cable no interviene en ningún cálculo (solo es informativo), así que
+// ocultarlo no afecta a objetivos ni cumplimientos.
+function syncCableVisibility() {
+  document.querySelectorAll('#prod-body tr[id^="pr-"]').forEach(tr => {
+    const id = tr.id.replace('pr-','');
+    const tipoSel  = document.getElementById('tipo-'  + id);
+    const cableSel = document.getElementById('cable-' + id);
+    if (!tipoSel || !cableSel) return;
+    if (tipoSel.value === 'Malla') {
+      cableSel.value = '—';
+      cableSel.style.visibility = 'hidden';
+    } else {
+      cableSel.style.visibility = '';
+    }
+  });
+}
+
 function recalc() {
+  syncCableVisibility();
   const personas = parseInt(document.getElementById('inp-personas').value) || 0;
   const ida      = parseFloat(document.getElementById('inp-ida').value)    || 0;
   const vuelta   = parseFloat(document.getElementById('inp-vuelta').value) || 0;
@@ -1343,12 +1363,24 @@ function fmtFecha(f) {
   return d + '/' + m + '/' + y;
 }
 
+// Devuelve el número si es finito; si no (undefined, null, NaN, Infinity) → 0.
+// Evita que un registro degenerado (p.ej. sincronizado sin cumplimiento)
+// muestre "NaN%" o rompa las sumas del resumen mensual.
+function numOr0(v) { return Number.isFinite(v) ? v : 0; }
+
 function mkBadge(pct) {
-  const cls = pct >= 100 ? 'bg' : pct >= 80 ? 'by' : 'br';
-  return `<span class="badge ${cls}">${pct}%</span>`;
+  const p = Number.isFinite(pct) ? Math.round(pct) : 0;
+  const cls = p >= 100 ? 'bg' : p >= 80 ? 'by' : 'br';
+  return `<span class="badge ${cls}">${p}%</span>`;
 }
 
 function dateStr() { return new Date().toISOString().slice(0,10).replace(/-/g,''); }
+
+// Fecha de hoy en formato día-mes-año (para nombres de archivo de backup)
+function dateStrDMY() {
+  const d = new Date(), p = n => String(n).padStart(2,'0');
+  return p(d.getDate()) + '-' + p(d.getMonth()+1) + '-' + d.getFullYear();
+}
 
 function dlBlob(blob, name) {
   const u = URL.createObjectURL(blob);
@@ -1402,24 +1434,26 @@ function renderResumen() {
   const recs  = data.filter(d => d.fecha.startsWith(pfx));
 
   let tM=0;
-  recs.forEach(r => { tM += r.metros; });
+  recs.forEach(r => { tM += numOr0(r.metros); });
 
   // Separar: días activos (personas > 0) y días cedidos (personas = 0)
   const diasActivos = recs.filter(r => r.personas > 0);
   const diasCedidos = recs.filter(r => r.personas === 0);
 
-  // Cumplimiento y media solo sobre días activos — los cedidos no cuentan
+  // Cumplimiento y media solo sobre días activos — los cedidos no cuentan.
+  // numOr0 evita que un registro sin cumplimiento (NaN/undefined) haga NaN
+  // toda la media y borre los porcentajes del resumen.
   const cumpl = diasActivos.length > 0
-    ? Math.round(diasActivos.reduce((s,r) => s + r.cumplimiento, 0) / diasActivos.length)
+    ? Math.round(diasActivos.reduce((s,r) => s + numOr0(r.cumplimiento), 0) / diasActivos.length)
     : 0;
   const media = diasActivos.length > 0
-    ? Math.round(diasActivos.reduce((s,r) => s + r.mediaPersona, 0) / diasActivos.length)
+    ? Math.round(diasActivos.reduce((s,r) => s + numOr0(r.mediaPersona), 0) / diasActivos.length)
     : 0;
 
   document.getElementById('res-dias').textContent    = diasActivos.length;
   document.getElementById('res-metros').textContent  = tM.toLocaleString('es');
   document.getElementById('res-objetivo').textContent= diasActivos.length > 0
-    ? (Math.round(diasActivos.reduce((s,r)=>s+r.metros,0)/diasActivos.length)).toLocaleString('es') + ' m' : '—';
+    ? (Math.round(diasActivos.reduce((s,r)=>s+numOr0(r.metros),0)/diasActivos.length)).toLocaleString('es') + ' m' : '—';
   document.getElementById('res-media').textContent   = media.toLocaleString('es') + ' m';
 
   // Tarjeta "Días cedidos" — solo visible si hay alguno ese mes
@@ -1443,7 +1477,8 @@ function renderResumen() {
 // vuelo desde metros y cumplimiento (ambos guardados), así los
 // registros antiguos se corrigen solos sin migrar datos.
 function objEfectivo(r) {
-  return (r.cumplimiento > 0) ? Math.round(r.metros * 100 / r.cumplimiento) : (r.objEq || 0);
+  const m = numOr0(r.metros), c = numOr0(r.cumplimiento);
+  return (c > 0) ? Math.round(m * 100 / c) : numOr0(r.objEq);
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1460,7 +1495,7 @@ function renderChart(recs, diasD, mes, anio) {
   for (let d=1; d<=diasD; d++) {
     const fs  = anio+'-'+mesP+'-'+String(d).padStart(2,'0');
     const reg = recs.find(r => r.fecha===fs);
-    days.push({ d, metros: reg?reg.metros:0, obj: reg?objEfectivo(reg):0, cumpl: reg?reg.cumplimiento:0, has: !!reg });
+    days.push({ d, metros: reg?numOr0(reg.metros):0, obj: reg?objEfectivo(reg):0, cumpl: reg?numOr0(reg.cumplimiento):0, has: !!reg });
   }
 
   const maxV = Math.max(...days.map(d => Math.max(d.metros, d.obj)), 100);
@@ -1546,7 +1581,7 @@ function loadAjustes() {
 // ════════════════════════════════════════════════════════════
 function exportJSON() {
   const blob = new Blob([JSON.stringify({version:1, data:loadData()},null,2)], {type:'application/json'});
-  dlBlob(blob, 'fibra_backup_'+dateStr()+'.json');
+  dlBlob(blob, 'fibra_backup_'+dateStrDMY()+'.json');
   toast('JSON exportado ✓', 'ok');
 }
 
@@ -2648,7 +2683,7 @@ let _deferredInstall = null;
 // Va dentro del nombre de caché del SW: al cambiarlo, el móvil
 // detecta la actualización y muestra "Nueva versión disponible".
 // ════════════════════════════════════════════════════════════
-const APP_VERSION = '5.2';
+const APP_VERSION = '5.3';
 const _av = document.getElementById('app-ver');
 if (_av) _av.textContent = APP_VERSION;
 
