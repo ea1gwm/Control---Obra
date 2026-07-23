@@ -766,7 +766,7 @@
 
 <footer style="text-align:center;padding:1.5rem 1rem 2.5rem;pointer-events:none;">
   <span style="font-size:.72rem;color:#334155;font-family:'DM Mono',monospace;letter-spacing:.08em;">
-    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v<span id="app-ver">5.3</span>
+    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v<span id="app-ver">5.4</span>
   </span>
 </footer>
 
@@ -1025,7 +1025,7 @@ function goTab(name, btn) {
 let _rowId = 0;
 
 const TIPOS   = ['Ra','Poste','ICX','Malla'];
-const CABLES  = ['—','12Fo','24Fo','48Fo','96Fo','144Fo','288Fo','512Fo','576Fo'];
+const CABLES  = ['—','12Fo','24Fo','48Fo','96Fo','144Fo','192Fo','288Fo','512Fo','576Fo'];
 
 function addRow(tipo='Ra', cable='—', metros='') {
   _rowId++;
@@ -2683,7 +2683,7 @@ let _deferredInstall = null;
 // Va dentro del nombre de caché del SW: al cambiarlo, el móvil
 // detecta la actualización y muestra "Nueva versión disponible".
 // ════════════════════════════════════════════════════════════
-const APP_VERSION = '5.3';
+const APP_VERSION = '5.4';
 const _av = document.getElementById('app-ver');
 if (_av) _av.textContent = APP_VERSION;
 
