@@ -766,7 +766,7 @@
 
 <footer style="text-align:center;padding:1.5rem 1rem 2.5rem;pointer-events:none;">
   <span style="font-size:.72rem;color:#334155;font-family:'DM Mono',monospace;letter-spacing:.08em;">
-    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v<span id="app-ver">5.4</span>
+    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v<span id="app-ver">5.5</span>
   </span>
 </footer>
 
@@ -841,6 +841,13 @@
 // ════════════════════════════════════════════════════════════
 const STORE   = 'obraData';
 const OBJ_KEY = 'objAjustes';
+
+// Aislamiento entre apps que comparten proyecto Firebase: un registro es
+// nuestro si lleva nuestro appType, o si es antiguo (sin appType) y NO trae
+// 'empleados' (los de Control de Personal sí lo traen).
+function esNuestroRegistro(r) {
+  return !!r && (r.appType ? r.appType === 'fibracontrol' : !r.empleados);
+}
 const DB_NAME = 'FibraControlDB';
 const DB_VER  = 1;
 
@@ -958,7 +965,7 @@ async function initStorage() {
       }
     }
 
-    _dataCache = idbData;
+    _dataCache = idbData.filter(esNuestroRegistro);
 
     // Restaurar ajustes desde IndexedDB si localStorage está vacío
     const idbObj = await idbKVGet(OBJ_KEY).catch(() => null);
@@ -969,7 +976,7 @@ async function initStorage() {
     }
 
   } catch(e) {
-    try { _dataCache = JSON.parse(localStorage.getItem(STORE)) || []; }
+    try { _dataCache = (JSON.parse(localStorage.getItem(STORE)) || []).filter(esNuestroRegistro); }
     catch { _dataCache = []; }
   }
 }
@@ -1252,7 +1259,7 @@ async function guardarDia() {
   const cumplimiento = (personas === 0 || tiposActivos2.length === 0) ? 0
     : tiposActivos2.reduce((s, t) => s + (opt[t] > 0 ? Math.round(mpt[t] / opt[t] * 100) : 0), 0);
   const mediaPersona = (personas > 0 && totalMetros > 0) ? Math.round(totalMetros / personas) : 0;
-  const reg = { fecha, personas, vIda, vVuelta, metros: totalMetros, notas, objEq: totalObj, cumplimiento, mediaPersona, prodDetalle };
+  const reg = { fecha, personas, vIda, vVuelta, metros: totalMetros, notas, objEq: totalObj, cumplimiento, mediaPersona, prodDetalle, appType: APP_TYPE };
 
   // Guardar local + Firebase (subcolección, con audit y per-record permissions)
   const data = loadData();
@@ -2126,6 +2133,9 @@ function subscribeToTeam(teamId) {
     _registroDocs = {};
     snap.docs.forEach(d => {
       const r = { _id: d.id, ...d.data() };
+      // Aislamiento entre apps que comparten el mismo proyecto Firebase:
+      // ignora los documentos de otra app (Control de Personal, etc.).
+      if (!esNuestroRegistro(r)) return;
       if (r.deleted) trash.push(r);
       else { active.push(r); _registroDocs[r.fecha] = d.id; }
     });
@@ -2683,7 +2693,7 @@ let _deferredInstall = null;
 // Va dentro del nombre de caché del SW: al cambiarlo, el móvil
 // detecta la actualización y muestra "Nueva versión disponible".
 // ════════════════════════════════════════════════════════════
-const APP_VERSION = '5.4';
+const APP_VERSION = '5.5';
 const _av = document.getElementById('app-ver');
 if (_av) _av.textContent = APP_VERSION;
 
