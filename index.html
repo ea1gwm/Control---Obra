@@ -766,7 +766,7 @@
 
 <footer style="text-align:center;padding:1.5rem 1rem 2.5rem;pointer-events:none;">
   <span style="font-size:.72rem;color:#334155;font-family:'DM Mono',monospace;letter-spacing:.08em;">
-    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v<span id="app-ver">5.5</span>
+    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v<span id="app-ver">5.6</span>
   </span>
 </footer>
 
@@ -1624,7 +1624,7 @@ async function pushAllDataToFirestore(arr) {
   const now = firebase.firestore.FieldValue.serverTimestamp();
   for (const r of arr) {
     const existingId = _registroDocs[r.fecha];
-    const data = { ...r, deleted: false, modifiedBy: _currentUser.uid, modifiedByEmail: _currentUser.email, modifiedAt: now };
+    const data = { ...r, appType: APP_TYPE, deleted: false, modifiedBy: _currentUser.uid, modifiedByEmail: _currentUser.email, modifiedAt: now };
     if (existingId) {
       await _fbDb.collection('teams').doc(_teamId).collection('registros').doc(existingId).set(data, { merge: true });
     } else {
@@ -2040,32 +2040,50 @@ async function findMyTeams() {
   if (!_currentUser || !_fbDb) return [];
   const teams = [];
   const seen = new Set();
+  // El filtro por app se hace en cliente: un equipo es de esta app si su
+  // array appTypes la incluye, o (esquema antiguo) si su appType coincide.
+  const esDeEstaApp = t => Array.isArray(t.appTypes) ? t.appTypes.includes(APP_TYPE)
+                         : (t.appType ? t.appType === APP_TYPE : true);
   try {
     const memberSnap = await _fbDb.collection('teams')
-      .where('memberUids', 'array-contains', _currentUser.uid)
-      .where('appType', '==', APP_TYPE).get();
+      .where('memberUids', 'array-contains', _currentUser.uid).get();
     memberSnap.forEach(d => {
-      teams.push({ id: d.id, ...d.data(), isMember: true });
+      const t = { id: d.id, ...d.data(), isMember: true };
+      if (!esDeEstaApp(t)) return;
+      teams.push(t);
       seen.add(d.id);
     });
   } catch(e) { console.warn('member query:', e); }
   try {
     const inviteSnap = await _fbDb.collection('teams')
-      .where('invitedEmails', 'array-contains', _currentUser.email.toLowerCase())
-      .where('appType', '==', APP_TYPE).get();
+      .where('invitedEmails', 'array-contains', _currentUser.email.toLowerCase()).get();
     inviteSnap.forEach(d => {
-      if (!seen.has(d.id)) teams.push({ id: d.id, ...d.data(), isInvited: true });
+      const t = { id: d.id, ...d.data(), isInvited: true };
+      if (!esDeEstaApp(t) || seen.has(d.id)) return;
+      teams.push(t);
     });
   } catch(e) { console.warn('invite query:', e); }
   return teams;
 }
 
 async function createOwnTeam(user) {
-  await _fbDb.collection('teams').doc(user.uid).set({
+  const ref = _fbDb.collection('teams').doc(user.uid);
+  // Si el equipo ya existe (lo pudo crear la otra app que comparte proyecto),
+  // NO sobrescribir: solo anotar que esta app también lo usa. Antes se hacía
+  // un .set() completo que borraba miembros, invitaciones y roles.
+  const snap = await ref.get();
+  if (snap.exists) {
+    await ref.set({
+      appTypes: firebase.firestore.FieldValue.arrayUnion(APP_TYPE)
+    }, { merge: true });
+    return;
+  }
+  await ref.set({
     ownerUid: user.uid,
     ownerEmail: user.email,
     name: 'Mi equipo',
     appType: APP_TYPE,
+    appTypes: [APP_TYPE],
     members: { [user.uid]: { email: user.email, role: 'admin', joinedAt: firebase.firestore.FieldValue.serverTimestamp() } },
     memberUids: [user.uid],
     invitedEmails: [],
@@ -2161,7 +2179,9 @@ function subscribeToTeam(teamId) {
 
   _unsubAudit = _fbDb.collection('teams').doc(teamId).collection('audit')
     .orderBy('timestamp', 'desc').limit(100).onSnapshot(snap => {
-    _auditEntries = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+    // Descartar las entradas escritas por la otra app que comparte la ruta
+    _auditEntries = snap.docs.map(d => ({ _id: d.id, ...d.data() }))
+      .filter(a => !a.appType || a.appType === APP_TYPE);
     renderAuditLog();
   });
 }
@@ -2175,6 +2195,7 @@ async function fbSaveRegistro(registro) {
   const now = firebase.firestore.FieldValue.serverTimestamp();
   const data = {
     ...registro,
+    appType: APP_TYPE,
     modifiedBy: _currentUser.uid,
     modifiedByEmail: _currentUser.email,
     modifiedAt: now,
@@ -2250,6 +2271,7 @@ async function logAudit(action, details = {}) {
   try {
     await _fbDb.collection('teams').doc(_teamId).collection('audit').add({
       action,
+      appType: APP_TYPE,
       actorUid: _currentUser.uid,
       actorEmail: _currentUser.email,
       timestamp: firebase.firestore.FieldValue.serverTimestamp(),
@@ -2693,7 +2715,7 @@ let _deferredInstall = null;
 // Va dentro del nombre de caché del SW: al cambiarlo, el móvil
 // detecta la actualización y muestra "Nueva versión disponible".
 // ════════════════════════════════════════════════════════════
-const APP_VERSION = '5.5';
+const APP_VERSION = '5.6';
 const _av = document.getElementById('app-ver');
 if (_av) _av.textContent = APP_VERSION;
 
