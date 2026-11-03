@@ -591,7 +591,7 @@
     </div>
 
     <div class="card">
-      <div class="card-title">Resumen Semanal — de martes a martes</div>
+      <div class="card-title">Resumen Semanal — de martes a martes · histórico completo</div>
       <div class="table-wrap">
         <table class="data-table" style="min-width:620px;">
           <thead>
@@ -608,8 +608,9 @@
         </table>
       </div>
       <div style="margin-top:.6rem;font-size:.72rem;color:var(--muted);">
-        Cada semana termina en martes: va de miércoles a martes (7 días). Se listan por el martes
-        en que cierran, y se calculan completas aunque crucen el cambio de mes.
+        Cada semana termina en martes: va de miércoles a martes (7 días). Se listan todas las
+        semanas con datos, de la más reciente a la más antigua. Una semana que cruza el cambio
+        de mes se agrupa en el mes donde caen más días de esa semana.
       </div>
     </div>
   </div>
@@ -789,7 +790,7 @@
 
 <footer style="text-align:center;padding:1.5rem 1rem 2.5rem;pointer-events:none;">
   <span style="font-size:.72rem;color:#334155;font-family:'DM Mono',monospace;letter-spacing:.08em;">
-    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v<span id="app-ver">6.0</span>
+    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v<span id="app-ver">6.1</span>
   </span>
 </footer>
 
@@ -1511,7 +1512,7 @@ function renderResumen() {
   cel.style.color = cumpl>=100?'var(--green)':cumpl>=80?'var(--yellow)':'var(--red)';
 
   renderChart(recs, diasD, mes, anio);
-  renderResumenSemanal(mes, anio, data);
+  renderResumenSemanal(data);
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1533,12 +1534,20 @@ function inicioSemana(fechaStr) {
   return dt;
 }
 
-function renderResumenSemanal(mes, anio, data) {
+// Mes al que pertenece una semana cuando cruza el cambio de mes: aquel
+// donde caen MÁS días de los 7. Como la semana tiene 7 días y toca como
+// mucho 2 meses, el día central (el 4º) está siempre en el mes mayoritario.
+function mesDeSemana(ini) {
+  const medio = new Date(ini);
+  medio.setDate(medio.getDate() + 3);
+  return { anio: medio.getFullYear(), mes: medio.getMonth() };
+}
+
+function renderResumenSemanal(data) {
   const cont = document.getElementById('semanal-body');
   if (!cont) return;
 
-  // Agrupar TODOS los registros por semana, no solo los del mes, para que
-  // una semana a caballo entre dos meses se calcule completa.
+  // Agrupar TODO el histórico por semanas (miércoles → martes)
   const semanas = {};
   data.forEach(r => {
     if (!r.fecha) return;
@@ -1551,19 +1560,30 @@ function renderResumenSemanal(mes, anio, data) {
     semanas[k].recs.push(r);
   });
 
-  // Cada semana se identifica por el martes en que cierra, así que se lista
-  // en el mes de ESE martes (la semana que termina hoy sale en el mes de hoy).
-  const claves = Object.keys(semanas)
-    .filter(k => semanas[k].fin.getMonth() === mes && semanas[k].fin.getFullYear() === anio)
-    .sort();
+  // De la más reciente a la más antigua
+  const claves = Object.keys(semanas).sort().reverse();
 
   if (claves.length === 0) {
-    cont.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--muted);">Sin semanas con datos este mes</td></tr>';
+    cont.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--muted);">Sin semanas con datos todavía</td></tr>';
     return;
   }
 
+  const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio',
+                 'Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  let mesActual = '';
+
   cont.innerHTML = claves.map(k => {
     const ini = semanas[k].ini, fin = semanas[k].fin, recs = semanas[k].recs;
+
+    // Cabecera de mes al cambiar de grupo
+    const { anio: aS, mes: mS } = mesDeSemana(ini);
+    const etiqueta = MESES[mS] + ' ' + aS;
+    let cabecera = '';
+    if (etiqueta !== mesActual) {
+      mesActual = etiqueta;
+      cabecera = `<tr><td colspan="6" style="background:rgba(245,158,11,.08);color:var(--yellow);font-weight:700;font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;padding:.5rem .8rem;">${etiqueta}</td></tr>`;
+    }
+
     // Igual que el mensual: las medias solo sobre días trabajados
     // (personas > 0); los cedidos no cuentan. numOr0 evita NaN.
     const activos = recs.filter(r => r.personas > 0);
@@ -1572,7 +1592,7 @@ function renderResumenSemanal(mes, anio, data) {
     const mediaDia  = n ? Math.round(activos.reduce((s,r)=>s+numOr0(r.metros),0)/n) : 0;
     const cumpl     = n ? Math.round(activos.reduce((s,r)=>s+numOr0(r.cumplimiento),0)/n) : 0;
     const mediaPers = n ? Math.round(activos.reduce((s,r)=>s+numOr0(r.mediaPersona),0)/n) : 0;
-    return `<tr>
+    return cabecera + `<tr>
       <td style="font-family:var(--mono);white-space:nowrap;">${fmtFecha(ymd(ini))} <span style="color:var(--muted);">–</span> ${fmtFecha(ymd(fin))}</td>
       <td style="font-family:var(--mono);text-align:center;">${n}</td>
       <td style="font-family:var(--mono);font-weight:700;">${metros.toLocaleString('es')}</td>
@@ -2822,7 +2842,7 @@ let _deferredInstall = null;
 // Va dentro del nombre de caché del SW: al cambiarlo, el móvil
 // detecta la actualización y muestra "Nueva versión disponible".
 // ════════════════════════════════════════════════════════════
-const APP_VERSION = '6.0';
+const APP_VERSION = '6.1';
 const _av = document.getElementById('app-ver');
 if (_av) _av.textContent = APP_VERSION;
 
