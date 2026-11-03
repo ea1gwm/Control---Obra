@@ -608,9 +608,9 @@
         </table>
       </div>
       <div style="margin-top:.6rem;font-size:.72rem;color:var(--muted);">
-        Cada semana termina en martes: va de miércoles a martes (7 días). Se listan todas las
-        semanas con datos, de la más reciente a la más antigua. Una semana que cruza el cambio
-        de mes se agrupa en el mes donde caen más días de esa semana.
+        Pulsa en un mes para desplegar o plegar sus semanas. Cada semana termina en martes: va de
+        miércoles a martes (7 días). Una semana que cruza el cambio de mes se agrupa en el mes
+        donde caen más días de esa semana.
       </div>
     </div>
   </div>
@@ -790,7 +790,7 @@
 
 <footer style="text-align:center;padding:1.5rem 1rem 2.5rem;pointer-events:none;">
   <span style="font-size:.72rem;color:#334155;font-family:'DM Mono',monospace;letter-spacing:.08em;">
-    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v<span id="app-ver">6.1</span>
+    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v<span id="app-ver">6.2</span>
   </span>
 </footer>
 
@@ -1543,6 +1543,41 @@ function mesDeSemana(ini) {
   return { anio: medio.getFullYear(), mes: medio.getMonth() };
 }
 
+// Meses desplegados en el resumen semanal. Se guarda fuera de la función
+// para que al refrescar la tabla no se cierre lo que el usuario abrió.
+// null = primera vez (se abre solo el mes más reciente).
+let _mesesAbiertos = null;
+
+function filaSemana(s, mesKey, visible) {
+  const { ini, fin, recs } = s;
+  // Igual que el mensual: las medias solo sobre días trabajados
+  // (personas > 0); los cedidos no cuentan. numOr0 evita NaN.
+  const activos = recs.filter(r => r.personas > 0);
+  const metros  = recs.reduce((s2,r) => s2 + numOr0(r.metros), 0);
+  const n = activos.length;
+  const mediaDia  = n ? Math.round(activos.reduce((s2,r)=>s2+numOr0(r.metros),0)/n) : 0;
+  const cumpl     = n ? Math.round(activos.reduce((s2,r)=>s2+numOr0(r.cumplimiento),0)/n) : 0;
+  const mediaPers = n ? Math.round(activos.reduce((s2,r)=>s2+numOr0(r.mediaPersona),0)/n) : 0;
+  return `<tr data-mes="${mesKey}"${visible ? '' : ' style="display:none;"'}>
+      <td style="font-family:var(--mono);white-space:nowrap;">${fmtFecha(ymd(ini))} <span style="color:var(--muted);">–</span> ${fmtFecha(ymd(fin))}</td>
+      <td style="font-family:var(--mono);text-align:center;">${n}</td>
+      <td style="font-family:var(--mono);font-weight:700;">${metros.toLocaleString('es')}</td>
+      <td style="font-family:var(--mono);">${n ? mediaDia.toLocaleString('es') : '—'}</td>
+      <td>${n ? mkBadge(cumpl) : '—'}</td>
+      <td style="font-family:var(--mono);">${n ? mediaPers.toLocaleString('es') : '—'}</td>
+    </tr>`;
+}
+
+function toggleMesSemanal(k) {
+  if (!_mesesAbiertos) return;
+  const abierto = !_mesesAbiertos.has(k);
+  if (abierto) _mesesAbiertos.add(k); else _mesesAbiertos.delete(k);
+  document.querySelectorAll('#semanal-body tr[data-mes="' + k + '"]')
+    .forEach(tr => { tr.style.display = abierto ? '' : 'none'; });
+  const ch = document.getElementById('chev-' + k);
+  if (ch) ch.textContent = abierto ? '▾' : '▸';
+}
+
 function renderResumenSemanal(data) {
   const cont = document.getElementById('semanal-body');
   if (!cont) return;
@@ -1570,36 +1605,33 @@ function renderResumenSemanal(data) {
 
   const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio',
                  'Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  let mesActual = '';
 
-  cont.innerHTML = claves.map(k => {
-    const ini = semanas[k].ini, fin = semanas[k].fin, recs = semanas[k].recs;
-
-    // Cabecera de mes al cambiar de grupo
-    const { anio: aS, mes: mS } = mesDeSemana(ini);
-    const etiqueta = MESES[mS] + ' ' + aS;
-    let cabecera = '';
-    if (etiqueta !== mesActual) {
-      mesActual = etiqueta;
-      cabecera = `<tr><td colspan="6" style="background:rgba(245,158,11,.08);color:var(--yellow);font-weight:700;font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;padding:.5rem .8rem;">${etiqueta}</td></tr>`;
+  // Agrupar las semanas por mes conservando el orden (ya vienen ordenadas)
+  const grupos = [];
+  claves.forEach(k => {
+    const { anio, mes } = mesDeSemana(semanas[k].ini);
+    const key = anio + '-' + String(mes+1).padStart(2,'0');
+    const ult = grupos[grupos.length-1];
+    if (!ult || ult.key !== key) {
+      grupos.push({ key, etiqueta: MESES[mes] + ' ' + anio, semanas: [k] });
+    } else {
+      ult.semanas.push(k);
     }
+  });
 
-    // Igual que el mensual: las medias solo sobre días trabajados
-    // (personas > 0); los cedidos no cuentan. numOr0 evita NaN.
-    const activos = recs.filter(r => r.personas > 0);
-    const metros  = recs.reduce((s,r) => s + numOr0(r.metros), 0);
-    const n = activos.length;
-    const mediaDia  = n ? Math.round(activos.reduce((s,r)=>s+numOr0(r.metros),0)/n) : 0;
-    const cumpl     = n ? Math.round(activos.reduce((s,r)=>s+numOr0(r.cumplimiento),0)/n) : 0;
-    const mediaPers = n ? Math.round(activos.reduce((s,r)=>s+numOr0(r.mediaPersona),0)/n) : 0;
-    return cabecera + `<tr>
-      <td style="font-family:var(--mono);white-space:nowrap;">${fmtFecha(ymd(ini))} <span style="color:var(--muted);">–</span> ${fmtFecha(ymd(fin))}</td>
-      <td style="font-family:var(--mono);text-align:center;">${n}</td>
-      <td style="font-family:var(--mono);font-weight:700;">${metros.toLocaleString('es')}</td>
-      <td style="font-family:var(--mono);">${n ? mediaDia.toLocaleString('es') : '—'}</td>
-      <td>${n ? mkBadge(cumpl) : '—'}</td>
-      <td style="font-family:var(--mono);">${n ? mediaPers.toLocaleString('es') : '—'}</td>
-    </tr>`;
+  // Primera vez: solo el mes más reciente desplegado
+  if (!_mesesAbiertos) _mesesAbiertos = new Set([grupos[0].key]);
+
+  cont.innerHTML = grupos.map(g => {
+    const abierto = _mesesAbiertos.has(g.key);
+    const ns = g.semanas.length;
+    const cabecera = `<tr onclick="toggleMesSemanal('${g.key}')" style="cursor:pointer;user-select:none;">
+      <td colspan="6" style="background:rgba(245,158,11,.08);color:var(--yellow);font-weight:700;font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;padding:.5rem .8rem;">
+        <span id="chev-${g.key}" style="display:inline-block;width:1em;">${abierto ? '▾' : '▸'}</span>
+        ${g.etiqueta}
+        <span style="color:var(--muted);font-weight:500;letter-spacing:0;text-transform:none;">· ${ns} semana${ns !== 1 ? 's' : ''}</span>
+      </td></tr>`;
+    return cabecera + g.semanas.map(k => filaSemana(semanas[k], g.key, abierto)).join('');
   }).join('');
 }
 
@@ -2842,7 +2874,7 @@ let _deferredInstall = null;
 // Va dentro del nombre de caché del SW: al cambiarlo, el móvil
 // detecta la actualización y muestra "Nueva versión disponible".
 // ════════════════════════════════════════════════════════════
-const APP_VERSION = '6.1';
+const APP_VERSION = '6.2';
 const _av = document.getElementById('app-ver');
 if (_av) _av.textContent = APP_VERSION;
 
