@@ -608,8 +608,8 @@
         </table>
       </div>
       <div style="margin-top:.6rem;font-size:.72rem;color:var(--muted);">
-        Cada semana va de martes a lunes (7 días). Se listan las que empiezan en el mes elegido,
-        y se calculan completas aunque crucen el cambio de mes.
+        Cada semana termina en martes: va de miércoles a martes (7 días). Se listan por el martes
+        en que cierran, y se calculan completas aunque crucen el cambio de mes.
       </div>
     </div>
   </div>
@@ -789,7 +789,7 @@
 
 <footer style="text-align:center;padding:1.5rem 1rem 2.5rem;pointer-events:none;">
   <span style="font-size:.72rem;color:#334155;font-family:'DM Mono',monospace;letter-spacing:.08em;">
-    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v<span id="app-ver">5.9</span>
+    creado por <span style="color:#f59e0b;font-weight:500;">Braulio</span> &nbsp;·&nbsp; v<span id="app-ver">6.0</span>
   </span>
 </footer>
 
@@ -1515,20 +1515,21 @@ function renderResumen() {
 }
 
 // ════════════════════════════════════════════════════════════
-// RESUMEN SEMANAL — semanas de martes a lunes (7 días)
+// RESUMEN SEMANAL — la semana TERMINA en martes (miércoles → martes, 7 días)
 // ════════════════════════════════════════════════════════════
 function ymd(dt) {
   return dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0')
          + '-' + String(dt.getDate()).padStart(2,'0');
 }
 
-// Martes en que empieza la semana a la que pertenece esa fecha.
-// getDay(): domingo=0, lunes=1, martes=2… El lunes cae en la semana
-// que arrancó el martes anterior.
-function inicioSemanaMartes(fechaStr) {
+// Miércoles en que empieza la semana a la que pertenece esa fecha.
+// El martes es el ÚLTIMO día de su semana: un martes cuenta para la semana
+// que arrancó el miércoles anterior, y el miércoles siguiente abre otra.
+// getDay(): domingo=0, lunes=1, martes=2, miércoles=3…
+function inicioSemana(fechaStr) {
   const [y,m,d] = fechaStr.split('-').map(Number);
   const dt = new Date(y, m-1, d);
-  dt.setDate(dt.getDate() - ((dt.getDay() - 2 + 7) % 7));
+  dt.setDate(dt.getDate() - ((dt.getDay() - 3 + 7) % 7));
   return dt;
 }
 
@@ -1541,15 +1542,19 @@ function renderResumenSemanal(mes, anio, data) {
   const semanas = {};
   data.forEach(r => {
     if (!r.fecha) return;
-    const ini = inicioSemanaMartes(r.fecha);
+    const ini = inicioSemana(r.fecha);
     const k = ymd(ini);
-    if (!semanas[k]) semanas[k] = { ini, recs: [] };
+    if (!semanas[k]) {
+      const fin = new Date(ini); fin.setDate(fin.getDate() + 6);  // martes de cierre
+      semanas[k] = { ini, fin, recs: [] };
+    }
     semanas[k].recs.push(r);
   });
 
-  // Mostrar las semanas cuyo martes cae en el mes elegido
+  // Cada semana se identifica por el martes en que cierra, así que se lista
+  // en el mes de ESE martes (la semana que termina hoy sale en el mes de hoy).
   const claves = Object.keys(semanas)
-    .filter(k => semanas[k].ini.getMonth() === mes && semanas[k].ini.getFullYear() === anio)
+    .filter(k => semanas[k].fin.getMonth() === mes && semanas[k].fin.getFullYear() === anio)
     .sort();
 
   if (claves.length === 0) {
@@ -1558,8 +1563,7 @@ function renderResumenSemanal(mes, anio, data) {
   }
 
   cont.innerHTML = claves.map(k => {
-    const ini = semanas[k].ini, recs = semanas[k].recs;
-    const fin = new Date(ini); fin.setDate(fin.getDate() + 6);
+    const ini = semanas[k].ini, fin = semanas[k].fin, recs = semanas[k].recs;
     // Igual que el mensual: las medias solo sobre días trabajados
     // (personas > 0); los cedidos no cuentan. numOr0 evita NaN.
     const activos = recs.filter(r => r.personas > 0);
@@ -2818,7 +2822,7 @@ let _deferredInstall = null;
 // Va dentro del nombre de caché del SW: al cambiarlo, el móvil
 // detecta la actualización y muestra "Nueva versión disponible".
 // ════════════════════════════════════════════════════════════
-const APP_VERSION = '5.9';
+const APP_VERSION = '6.0';
 const _av = document.getElementById('app-ver');
 if (_av) _av.textContent = APP_VERSION;
 
